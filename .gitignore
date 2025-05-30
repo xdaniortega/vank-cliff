@@ -17,3 +17,12 @@
 /types
 
 .env
+.DS_Store
+
+backend/.DS_Store
+frontend/.DS_Store
+backend/.env
+frontend/.env
+
+backend/node_modules
+frontend/node_modules
