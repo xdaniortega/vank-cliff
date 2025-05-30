@@ -8,18 +8,20 @@ import LoadingCard from './LoadingCard';
 import LoadingSpinner from './LoadingSpinner';
 import IndividualDashboard from './IndividualDashboard';
 import CompanyDashboard from './CompanyDashboard';
-import { Building2, Users, Plus, X, User, Wallet, UserPlus, Briefcase, Trash2 } from 'lucide-react';
+import { Building2, Users, Plus, X, User, Wallet, UserPlus, Briefcase, Trash2, Globe, MapPin, Calendar, Badge, Clock } from 'lucide-react';
 import { 
   fetchSectionData,
   fetchTeamsAndEmployees,
   addEmployee,
   createTeam,
   deleteTeam,
+  fetchClientCompanyInfo,
   Team,
   Employee,
   TeamsAndEmployeesData,
   AddEmployeeRequest,
-  CreateTeamRequest
+  CreateTeamRequest,
+  ClientCompanyInfo
 } from '@/api/api_calls';
 
 interface MainContentProps {
@@ -1415,6 +1417,502 @@ const TeamsEmployeesManagement = ({ loading }: { loading: boolean }) => {
   );
 };
 
+// My Company Information Component
+const MyCompanyInfo = ({ loading }: { loading: boolean }) => {
+  const [companyInfo, setCompanyInfo] = useState<ClientCompanyInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      const data = await fetchClientCompanyInfo();
+      setCompanyInfo(data);
+    } catch (error) {
+      console.error('Error fetching company information:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!loading) {
+      fetchData();
+    }
+  }, [loading]);
+
+  if (loading || isLoading) {
+    return (
+      <LoadingCard title="Loading Company Information..." showSpinner={true}>
+        <p>Fetching your company details...</p>
+      </LoadingCard>
+    );
+  }
+
+  if (!companyInfo) {
+    return (
+      <div style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '12px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 2px 8px ${colors.shadow}`,
+        textAlign: 'center'
+      }}>
+        <p style={{
+          color: colors.text.secondary,
+          fontSize: typography.fontSize.base
+        }}>
+          Unable to load company information. Please try again later.
+        </p>
+      </div>
+    );
+  }
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  };
+
+  const calculateEmploymentDuration = (startDate: Date) => {
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - startDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const years = Math.floor(diffDays / 365);
+    const months = Math.floor((diffDays % 365) / 30);
+    
+    if (years > 0) {
+      return `${years} year${years !== 1 ? 's' : ''} ${months > 0 ? `and ${months} month${months !== 1 ? 's' : ''}` : ''}`;
+    }
+    return `${months} month${months !== 1 ? 's' : ''}`;
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: spacing.xl
+    }}>
+      {/* Company Overview Card */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {/* Background gradient */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          right: 0,
+          width: '200px',
+          height: '200px',
+          background: `linear-gradient(135deg, ${colors.primary}10, ${colors.accent}05)`,
+          borderRadius: '0 16px 0 100%'
+        }} />
+
+        <div style={{
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.lg,
+            marginBottom: spacing.xl
+          }}>
+            {companyInfo.companyLogo && (
+              <img
+                src={companyInfo.companyLogo}
+                alt={`${companyInfo.companyName} logo`}
+                style={{
+                  width: '64px',
+                  height: '64px',
+                  objectFit: 'contain'
+                }}
+              />
+            )}
+            <div>
+              <h2 style={{
+                fontSize: typography.fontSize['2xl'],
+                fontWeight: typography.fontWeight.bold,
+                color: colors.text.primary,
+                margin: '0 0 8px 0'
+              }}>
+                {companyInfo.companyName}
+              </h2>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.sm,
+                flexWrap: 'wrap'
+              }}>
+                <span style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  backgroundColor: colors.light,
+                  padding: `4px ${spacing.sm}`,
+                  borderRadius: '6px'
+                }}>
+                  {companyInfo.industry}
+                </span>
+                <span style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary
+                }}>
+                  Founded {companyInfo.foundedYear}
+                </span>
+                <span style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary
+                }}>
+                  {companyInfo.employeeCount} employees
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <p style={{
+            fontSize: typography.fontSize.base,
+            color: colors.text.primary,
+            lineHeight: 1.6,
+            marginBottom: spacing.lg
+          }}>
+            {companyInfo.description}
+          </p>
+
+          {/* Company Details Grid */}
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: spacing.lg
+          }}>
+            {/* Address */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: spacing.sm
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: colors.primary,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <MapPin size={16} color="white" strokeWidth={2} />
+              </div>
+              <div>
+                <h4 style={{
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  margin: '0 0 4px 0'
+                }}>
+                  Address
+                </h4>
+                <p style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  margin: 0,
+                  lineHeight: 1.4
+                }}>
+                  {companyInfo.address.street}<br />
+                  {companyInfo.address.city}, {companyInfo.address.state} {companyInfo.address.zipCode}<br />
+                  {companyInfo.address.country}
+                </p>
+              </div>
+            </div>
+
+            {/* Website */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: spacing.sm
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: colors.secondary,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Globe size={16} color="white" strokeWidth={2} />
+              </div>
+              <div>
+                <h4 style={{
+                  fontSize: typography.fontSize.sm,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  margin: '0 0 4px 0'
+                }}>
+                  Website
+                </h4>
+                <a
+                  href={companyInfo.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: typography.fontSize.sm,
+                    color: colors.primary,
+                    textDecoration: 'none'
+                  }}
+                >
+                  {companyInfo.website}
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Employment Details Card */}
+      <div style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.sm,
+          marginBottom: spacing.lg
+        }}>
+          <div style={{
+            width: '32px',
+            height: '32px',
+            backgroundColor: colors.accent,
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <Badge size={18} color="white" strokeWidth={2.5} />
+          </div>
+          <h3 style={{
+            fontSize: typography.fontSize.lg,
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary,
+            margin: 0
+          }}>
+            Your Employment Details
+          </h3>
+        </div>
+
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+          gap: spacing.lg
+        }}>
+          {/* Position & Department */}
+          <div style={{
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`
+          }}>
+            <h4 style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: '0 0 8px 0'
+            }}>
+              Position
+            </h4>
+            <p style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.medium,
+              color: colors.primary,
+              margin: '0 0 4px 0'
+            }}>
+              {companyInfo.employmentDetails.position}
+            </p>
+            <p style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              margin: 0
+            }}>
+              {companyInfo.employmentDetails.department} Department
+            </p>
+          </div>
+
+          {/* Employment Duration */}
+          <div style={{
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`
+          }}>
+            <h4 style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: '0 0 8px 0'
+            }}>
+              Employment Duration
+            </h4>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.xs,
+              marginBottom: spacing.xs
+            }}>
+              <Calendar size={14} color={colors.text.secondary} strokeWidth={1.5} />
+              <p style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.secondary,
+                margin: 0
+              }}>
+                Started {formatDate(companyInfo.employmentDetails.startDate)}
+              </p>
+            </div>
+            <p style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.medium,
+              color: colors.primary,
+              margin: 0
+            }}>
+              {calculateEmploymentDuration(companyInfo.employmentDetails.startDate)}
+            </p>
+          </div>
+
+          {/* Employment Type & Status */}
+          <div style={{
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`
+          }}>
+            <h4 style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: '0 0 8px 0'
+            }}>
+              Employment Type
+            </h4>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm,
+              marginBottom: spacing.xs
+            }}>
+              <span style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.primary,
+                fontWeight: typography.fontWeight.medium
+              }}>
+                {companyInfo.employmentDetails.employmentType}
+              </span>
+              <span style={{
+                fontSize: typography.fontSize.xs,
+                color: '#059669',
+                backgroundColor: '#d1fae5',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontWeight: typography.fontWeight.medium
+              }}>
+                {companyInfo.employmentDetails.status}
+              </span>
+            </div>
+            <p style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              margin: 0
+            }}>
+              Work Location: {companyInfo.employmentDetails.workLocation}
+            </p>
+          </div>
+
+          {/* Manager */}
+          <div style={{
+            padding: spacing.md,
+            backgroundColor: colors.surface,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`
+          }}>
+            <h4 style={{
+              fontSize: typography.fontSize.sm,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: '0 0 8px 0'
+            }}>
+              Reporting Manager
+            </h4>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm
+            }}>
+              <div style={{
+                width: '24px',
+                height: '24px',
+                backgroundColor: colors.primary,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <User size={12} color="white" strokeWidth={2} />
+              </div>
+              <p style={{
+                fontSize: typography.fontSize.base,
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.primary,
+                margin: 0
+              }}>
+                {companyInfo.employmentDetails.manager}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Employee ID */}
+        <div style={{
+          marginTop: spacing.lg,
+          padding: spacing.md,
+          backgroundColor: colors.light,
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <span style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            fontWeight: typography.fontWeight.medium
+          }}>
+            Employee ID:
+          </span>
+          <span style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.primary,
+            fontFamily: 'monospace',
+            fontWeight: typography.fontWeight.medium
+          }}>
+            {companyInfo.employmentDetails.employeeId}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function MainContent({ activeSection, isMobile }: MainContentProps) {
   // Always call hooks first - this must be consistent across renders
   const { loading } = useAsyncData(activeSection);
@@ -1442,70 +1940,12 @@ export default function MainContent({ activeSection, isMobile }: MainContentProp
       case 'company':
         return userIsCompany ? (
           <TeamsEmployeesManagement loading={loading} />
-        ) : (
-          <div style={{
-            backgroundColor: 'white',
-            padding: spacing.xl,
-            borderRadius: '12px',
-            border: `1px solid ${colors.border}`,
-            boxShadow: `0 2px 8px ${colors.shadow}`
-          }}>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              marginBottom: spacing.lg
-            }}>
-              <div style={{
-                width: '48px',
-                height: '48px',
-                backgroundColor: colors.primary,
-                borderRadius: '12px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginRight: spacing.md
-              }}>
-                <Building2 size={24} color="white" strokeWidth={2} />
-              </div>
-              <h3 style={{
-                fontSize: typography.fontSize.lg,
-                fontWeight: typography.fontWeight.semibold,
-                color: colors.text.primary,
-                margin: 0
-              }}>
-                Company Features
-              </h3>
-            </div>
-            
-            <div>
-              <p style={{
-                color: colors.text.secondary,
-                fontSize: typography.fontSize.base,
-                marginBottom: spacing.lg
-              }}>
-                Company management features and tools will be available here.
-              </p>
-              <div style={{
-                display: 'flex',
-                gap: spacing.md,
-                flexWrap: 'wrap'
-              }}>
-                <button style={{
-                  backgroundColor: colors.primary,
-                  color: 'white',
-                  border: 'none',
-                  padding: `${spacing.sm} ${spacing.md}`,
-                  borderRadius: '8px',
-                  fontSize: typography.fontSize.sm,
-                  fontWeight: typography.fontWeight.medium,
-                  cursor: 'pointer'
-                }}>
-                  Upgrade to Company
-                </button>
-              </div>
-            </div>
-          </div>
-        );
+        ) : null;
+      
+      case 'mycompany':
+        return !userIsCompany ? (
+          <MyCompanyInfo loading={loading} />
+        ) : null;
       
       default:
         return loading ? (
@@ -1543,6 +1983,7 @@ export default function MainContent({ activeSection, isMobile }: MainContentProp
     switch (activeSection) {
       case 'dashboard': return 'Dashboard';
       case 'company': return userIsCompany ? 'Teams & Employees' : 'Company';
+      case 'mycompany': return 'My Company';
       default: return activeSection.charAt(0).toUpperCase() + activeSection.slice(1);
     }
   };

@@ -12,7 +12,7 @@
     "@dynamic-labs/ethereum": "^4.19.2",
     "@dynamic-labs/sdk-react-core": "^4.19.2",
     "lucide-react": "^0.511.0",
-    "next": "15.1.0",
+    "next": "15.2.4",
     "react": "19.0.0",
     "react-dom": "19.0.0",
     "viem": "^2.30.5"
@@ -22,7 +22,7 @@
     "@types/react": "19.0.1",
     "@types/react-dom": "19.0.2",
     "eslint": "9.17.0",
-    "eslint-config-next": "15.1.0",
+    "eslint-config-next": "15.2.4",
     "typescript": "5.7.2"
   }
 }

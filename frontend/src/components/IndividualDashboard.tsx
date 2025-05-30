@@ -1,121 +1,109 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
-import { User } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { DollarSign, HandCoins, CreditCard, TrendingUp } from 'lucide-react';
 import LoadingCard from './LoadingCard';
+import { 
+  fetchIndividualBalance,
+  fetchCreditScore,
+  IndividualBalance,
+  CreditScore
+} from '@/api/api_calls';
 
 interface IndividualDashboardProps {
   isLoading: boolean;
 }
 
-const PortfolioCard = ({ title, isLoading }: { title: string; isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <LoadingCard title={`Loading ${title}...`} showSpinner={true}>
-        <p>Fetching your latest portfolio data...</p>
-      </LoadingCard>
-    );
-  }
+// Credit Score Half-Arch Component
+const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number }) => {
+  const percentage = (score / maxScore) * 100;
+  const angle = (percentage / 100) * 180; // Half circle is 180 degrees
+  
+  // Determine color based on score
+  const getScoreColor = (score: number, maxScore: number) => {
+    const percentage = (score / maxScore) * 100;
+    if (percentage >= 75) return '#22c55e'; // Green
+    if (percentage >= 50) return '#eab308'; // Yellow
+    return '#ef4444'; // Red
+  };
+
+  const scoreColor = getScoreColor(score, maxScore);
 
   return (
     <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
+      position: 'relative',
+      width: '200px',
+      height: '100px',
+      margin: '0 auto'
     }}>
-      <h3 style={{
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginBottom: spacing.md
-      }}>
-        {title}
-      </h3>
-      <p style={{
-        fontSize: typography.fontSize['3xl'],
-        fontWeight: typography.fontWeight.bold,
-        color: colors.primary,
-        margin: '0 0 8px 0'
-      }}>
-        $24,567.89
-      </p>
-      <p style={{
-        fontSize: typography.fontSize.sm,
-        color: colors.text.secondary,
-        margin: 0
-      }}>
-        +$1,234.56 (+5.3%) today
-      </p>
-    </div>
-  );
-};
-
-const QuickActionsCard = ({ isLoading }: { isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <LoadingCard title="Loading Actions..." showSpinner={true}>
-        <p>Preparing your trading options...</p>
-      </LoadingCard>
-    );
-  }
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
-    }}>
-      <h3 style={{
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginBottom: spacing.lg
-      }}>
-        Quick Actions
-      </h3>
+      {/* Background arc */}
+      <svg 
+        width="200" 
+        height="100" 
+        viewBox="0 0 200 100"
+        style={{ position: 'absolute', top: 0, left: 0 }}
+      >
+        <path
+          d="M 20 80 A 80 80 0 0 1 180 80"
+          fill="none"
+          stroke={colors.border}
+          strokeWidth="8"
+          strokeLinecap="round"
+        />
+        {/* Score arc */}
+        <path
+          d="M 20 80 A 80 80 0 0 1 180 80"
+          fill="none"
+          stroke={scoreColor}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${(angle / 180) * 251.3} 251.3`}
+          style={{
+            transition: 'stroke-dasharray 1s ease-in-out'
+          }}
+        />
+      </svg>
+      
+      {/* Score text */}
       <div style={{
-        display: 'flex',
-        gap: spacing.md,
-        flexWrap: 'wrap'
+        position: 'absolute',
+        top: '35px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        textAlign: 'center'
       }}>
-        <button style={{
-          backgroundColor: colors.primary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
+        <div style={{
+          fontSize: typography.fontSize['2xl'],
+          fontWeight: typography.fontWeight.bold,
+          color: scoreColor,
+          lineHeight: 1
         }}>
-          Buy Crypto
-        </button>
-        <button style={{
-          backgroundColor: colors.secondary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
+          {score}
+        </div>
+        <div style={{
+          fontSize: typography.fontSize.xs,
+          color: colors.text.secondary,
+          marginTop: '2px'
         }}>
-          Sell Crypto
-        </button>
+          / {maxScore}
+        </div>
       </div>
     </div>
   );
 };
 
-const TransactionsCard = ({ isLoading }: { isLoading: boolean }) => {
+const UserBalanceCard = ({ 
+  isLoading,
+  balance
+}: { 
+  isLoading: boolean;
+  balance: IndividualBalance | null;
+}) => {
   if (isLoading) {
     return (
-      <LoadingCard title="Loading Transactions..." showSpinner={true}>
-        <p>Fetching your recent transaction history...</p>
+      <LoadingCard title="Loading Balance..." showSpinner={true}>
+        <p>Fetching your current balance...</p>
       </LoadingCard>
     );
   }
@@ -124,193 +112,359 @@ const TransactionsCard = ({ isLoading }: { isLoading: boolean }) => {
     <div style={{
       backgroundColor: 'white',
       padding: spacing.xl,
-      borderRadius: '12px',
+      borderRadius: '16px',
       border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
+      boxShadow: `0 4px 12px ${colors.shadow}`,
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <h3 style={{
-        fontSize: typography.fontSize.lg,
-        fontWeight: typography.fontWeight.semibold,
-        color: colors.text.primary,
-        marginBottom: spacing.lg
-      }}>
-        Recent Transactions
-      </h3>
-      <p style={{
-        color: colors.text.secondary,
-        fontSize: typography.fontSize.base
-      }}>
-        Your recent transactions will appear here once you connect your wallet.
-      </p>
-    </div>
-  );
-};
-
-const IndividualDashboardWidget = ({ isLoading }: { isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <LoadingCard title="Loading Personal Dashboard..." showSpinner={true}>
-        <p>Setting up your personal crypto portfolio...</p>
-      </LoadingCard>
-    );
-  }
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`,
-      marginBottom: spacing.lg
-    }}>
+      {/* Background gradient accent */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '120px',
+        height: '120px',
+        background: `linear-gradient(135deg, ${colors.primary}15, ${colors.accent}10)`,
+        borderRadius: '0 16px 0 100%'
+      }} />
+      
+      {/* Header */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        marginBottom: spacing.lg
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        marginBottom: spacing.lg,
+        position: 'relative',
+        zIndex: 1
       }}>
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm,
+            marginBottom: spacing.xs
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: colors.primary,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <DollarSign size={18} color="white" strokeWidth={2.5} />
+            </div>
+            <h3 style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: 0
+            }}>
+              My Balance
+            </h3>
+          </div>
+          <p style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            margin: 0
+          }}>
+            Available funds
+          </p>
+        </div>
+        
         <div style={{
-          width: '48px',
-          height: '48px',
-          backgroundColor: colors.secondary,
-          borderRadius: '12px',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: spacing.md
-        }}>
-          <User 
-            size={24} 
-            color="white"
-            strokeWidth={2}
-          />
-        </div>
-        <h3 style={{
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary,
-          margin: 0
-        }}>
-          Personal Portfolio
-        </h3>
-      </div>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: spacing.md,
-        marginBottom: spacing.lg
-      }}>
-        <div style={{
-          backgroundColor: colors.light,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0'
-          }}>
-            Total Balance
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: colors.primary,
-            margin: 0
-          }}>
-            $24,567.89
-          </p>
-        </div>
-        
-        <div style={{
+          gap: spacing.xs,
           backgroundColor: colors.mint,
-          padding: spacing.md,
-          borderRadius: '8px'
+          padding: `${spacing.xs} ${spacing.sm}`,
+          borderRadius: '12px'
         }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
+          <TrendingUp size={12} color={colors.text.secondary} strokeWidth={2} />
+          <span style={{
+            fontSize: typography.fontSize.xs,
             color: colors.text.secondary,
-            margin: '0 0 8px 0'
+            fontWeight: typography.fontWeight.medium
           }}>
-            24h Change
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: '#22c55e',
-            margin: 0
-          }}>
-            +5.2%
-          </p>
+            Live
+          </span>
         </div>
-        
-        <div style={{
-          backgroundColor: colors.accent,
-          padding: spacing.md,
-          borderRadius: '8px'
+      </div>
+
+      {/* Amount Display */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <p style={{
+          fontSize: typography.fontSize['4xl'],
+          fontWeight: typography.fontWeight.bold,
+          color: colors.text.primary,
+          margin: '0 0 8px 0',
+          lineHeight: 1,
+          letterSpacing: '-0.02em'
         }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: 'white',
-            margin: '0 0 8px 0'
-          }}>
-            Holdings
-          </h4>
+          ${balance?.amount.toFixed(2) || '0.00'}
+        </p>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.xs
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            backgroundColor: '#22c55e',
+            borderRadius: '50%'
+          }}></div>
           <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: 'white',
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
             margin: 0
           }}>
-            12 Assets
+            Updated just now
           </p>
         </div>
       </div>
+    </div>
+  );
+};
+
+const FinancialActionsCard = ({ 
+  isLoading,
+  creditScore
+}: { 
+  isLoading: boolean;
+  creditScore: CreditScore | null;
+}) => {
+  const [isRequestingMoney, setIsRequestingMoney] = useState(false);
+  const [isRequestingLoan, setIsRequestingLoan] = useState(false);
+
+  const handleRequestMoney = () => {
+    setIsRequestingMoney(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsRequestingMoney(false);
+      alert('Money request sent successfully!');
+    }, 2000);
+  };
+
+  const handleRequestLoan = () => {
+    setIsRequestingLoan(true);
+    // Simulate API call
+    setTimeout(() => {
+      setIsRequestingLoan(false);
+      alert('Loan application submitted!');
+    }, 2000);
+  };
+
+  if (isLoading) {
+    return (
+      <LoadingCard title="Loading Financial Tools..." showSpinner={true}>
+        <p>Preparing your financial options...</p>
+      </LoadingCard>
+    );
+  }
+
+  return (
+    <div style={{
+      backgroundColor: 'white',
+      padding: spacing.xl,
+      borderRadius: '16px',
+      border: `1px solid ${colors.border}`,
+      boxShadow: `0 4px 12px ${colors.shadow}`,
+      position: 'relative',
+      overflow: 'hidden'
+    }}>
+      {/* Background pattern */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        background: `linear-gradient(135deg, ${colors.secondary}08, ${colors.accent}05)`,
+        zIndex: 0
+      }} />
       
+      {/* Header */}
       <div style={{
         display: 'flex',
-        gap: spacing.md,
-        flexWrap: 'wrap'
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        marginBottom: spacing.xl,
+        position: 'relative',
+        zIndex: 1
       }}>
-        <button style={{
-          backgroundColor: colors.primary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm,
+            marginBottom: spacing.xs
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: colors.secondary,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <HandCoins size={18} color="white" strokeWidth={2.5} />
+            </div>
+            <h3 style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: 0
+            }}>
+              Financial Actions
+            </h3>
+          </div>
+          <p style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            margin: 0
+          }}>
+            Manage your finances
+          </p>
+        </div>
+      </div>
+
+      {/* Credit Score Section */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        marginBottom: spacing.xl
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.sm,
+          marginBottom: spacing.md
         }}>
-          Buy Crypto
+          <CreditCard size={16} color={colors.text.secondary} strokeWidth={2} />
+          <h4 style={{
+            fontSize: typography.fontSize.sm,
+            fontWeight: typography.fontWeight.semibold,
+            color: colors.text.primary,
+            margin: 0
+          }}>
+            Credit Score
+          </h4>
+        </div>
+        
+        {creditScore && (
+          <>
+            <CreditScoreGauge score={creditScore.score} maxScore={creditScore.maxScore} />
+            <div style={{
+              textAlign: 'center',
+              marginTop: spacing.sm
+            }}>
+              <span style={{
+                fontSize: typography.fontSize.sm,
+                color: colors.text.primary,
+                fontWeight: typography.fontWeight.medium
+              }}>
+                {creditScore.category}
+              </span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Action Buttons */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        display: 'flex',
+        gap: spacing.md,
+        flexDirection: 'column'
+      }}>
+        <button 
+          onClick={handleRequestMoney}
+          disabled={isRequestingMoney}
+          style={{
+            width: '100%',
+            backgroundColor: isRequestingMoney ? colors.text.secondary : colors.primary,
+            color: 'white',
+            border: 'none',
+            padding: `${spacing.md} ${spacing.lg}`,
+            borderRadius: '12px',
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
+            cursor: isRequestingMoney ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.sm,
+            transition: 'all 0.2s ease',
+            boxShadow: isRequestingMoney ? 'none' : `0 2px 8px ${colors.primary}30`
+          }}
+        >
+          {isRequestingMoney ? (
+            <>
+              <div style={{
+                width: '18px',
+                height: '18px',
+                border: `2px solid rgba(255, 255, 255, 0.3)`,
+                borderTop: `2px solid white`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              Processing...
+            </>
+          ) : (
+            <>
+              <HandCoins size={18} strokeWidth={2} />
+              Request Money
+            </>
+          )}
         </button>
-        <button style={{
-          backgroundColor: colors.secondary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Send/Receive
-        </button>
-        <button style={{
-          backgroundColor: 'transparent',
-          color: colors.primary,
-          border: `2px solid ${colors.primary}`,
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          View Reports
+
+        <button 
+          onClick={handleRequestLoan}
+          disabled={isRequestingLoan}
+          style={{
+            width: '100%',
+            backgroundColor: isRequestingLoan ? colors.text.secondary : colors.accent,
+            color: 'white',
+            border: 'none',
+            padding: `${spacing.md} ${spacing.lg}`,
+            borderRadius: '12px',
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
+            cursor: isRequestingLoan ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.sm,
+            transition: 'all 0.2s ease',
+            boxShadow: isRequestingLoan ? 'none' : `0 2px 8px ${colors.accent}30`
+          }}
+        >
+          {isRequestingLoan ? (
+            <>
+              <div style={{
+                width: '18px',
+                height: '18px',
+                border: `2px solid rgba(255, 255, 255, 0.3)`,
+                borderTop: `2px solid white`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              Processing...
+            </>
+          ) : (
+            <>
+              <CreditCard size={18} strokeWidth={2} />
+              Ask for Loan
+            </>
+          )}
         </button>
       </div>
     </div>
@@ -318,21 +472,59 @@ const IndividualDashboardWidget = ({ isLoading }: { isLoading: boolean }) => {
 };
 
 export default function IndividualDashboard({ isLoading }: IndividualDashboardProps) {
+  const [balance, setBalance] = useState<IndividualBalance | null>(null);
+  const [creditScore, setCreditScore] = useState<CreditScore | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isLoading) {
+      setIsDataLoading(true);
+      
+      Promise.all([
+        fetchIndividualBalance(),
+        fetchCreditScore()
+      ]).then(([balanceData, creditData]) => {
+        setBalance(balanceData);
+        setCreditScore(creditData);
+        setIsDataLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching individual dashboard data:', error);
+        setIsDataLoading(false);
+      });
+    }
+  }, [isLoading]);
+
   return (
     <div>
-      <IndividualDashboardWidget isLoading={isLoading} />
-      
-      {/* Common components */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: spacing.lg,
-        marginBottom: spacing.xl
+        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gap: spacing.xl
       }}>
-        <PortfolioCard title="Portfolio Value" isLoading={isLoading} />
-        <QuickActionsCard isLoading={isLoading} />
+        <UserBalanceCard 
+          isLoading={isLoading || isDataLoading} 
+          balance={balance}
+        />
+        <FinancialActionsCard 
+          isLoading={isLoading || isDataLoading}
+          creditScore={creditScore}
+        />
       </div>
-      <TransactionsCard isLoading={isLoading} />
     </div>
   );
+}
+
+// Add CSS for spinner animation
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  `;
+  if (!document.head.querySelector('style[data-animation="spin"]')) {
+    style.setAttribute('data-animation', 'spin');
+    document.head.appendChild(style);
+  }
 } 

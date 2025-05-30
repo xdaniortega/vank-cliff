@@ -24,6 +24,48 @@ export interface TeamsAndEmployeesData {
   totalTeamCosts: number;
 }
 
+export interface ClientCompanyInfo {
+  companyId: string;
+  companyName: string;
+  companyLogo?: string;
+  address: {
+    street: string;
+    city: string;
+    state: string;
+    zipCode: string;
+    country: string;
+  };
+  industry: string;
+  foundedYear: number;
+  employeeCount: number;
+  website: string;
+  description: string;
+  employmentDetails: {
+    employeeId: string;
+    employeeName: string;
+    position: string;
+    department: string;
+    startDate: Date;
+    employmentType: string;
+    status: string;
+    manager: string;
+    workLocation: string;
+  };
+}
+
+export interface IndividualBalance {
+  amount: number;
+  currency: string;
+  lastUpdated: Date;
+}
+
+export interface CreditScore {
+  score: number;
+  maxScore: number;
+  category: string;
+  lastUpdated: Date;
+}
+
 export interface TreasuryBalance {
   amount: number;
   currency: string;
@@ -101,6 +143,87 @@ export const fetchTreasuryBalance = (): Promise<TreasuryBalance> => {
 // =============================================================================
 // TEAMS & EMPLOYEE MANAGEMENT
 // =============================================================================
+
+/**
+ * Fetches company information for a client/individual user
+ * @returns Promise<ClientCompanyInfo>
+ */
+export const fetchClientCompanyInfo = (): Promise<ClientCompanyInfo> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        companyId: 'comp_vankcliff_001',
+        companyName: 'VankCliff Technologies',
+        companyLogo: '/VankCliff_Logo.svg',
+        address: {
+          street: '1234 Innovation Drive, Suite 500',
+          city: 'San Francisco',
+          state: 'California',
+          zipCode: '94105',
+          country: 'United States'
+        },
+        industry: 'Blockchain & Financial Technology',
+        foundedYear: 2019,
+        employeeCount: 247,
+        website: 'https://vankcliff.com',
+        description: 'VankCliff Technologies is a leading blockchain and financial technology company focused on creating innovative solutions for the future of digital finance. We specialize in decentralized applications, smart contracts, and cutting-edge fintech solutions.',
+        employmentDetails: {
+          employeeId: 'emp_vc_2024_0156',
+          employeeName: 'John Doe', // In real app, this would come from user context
+          position: 'Senior Blockchain Developer',
+          department: 'Engineering',
+          startDate: new Date('2023-03-15'),
+          employmentType: 'Full-time',
+          status: 'Active',
+          manager: 'Sarah Chen',
+          workLocation: 'Remote'
+        }
+      });
+    }, 1800); // 1.8-second delay
+  });
+};
+
+/**
+ * Fetches individual user balance
+ * @returns Promise<IndividualBalance>
+ */
+export const fetchIndividualBalance = (): Promise<IndividualBalance> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve({
+        amount: 8450.75,
+        currency: 'USD',
+        lastUpdated: new Date()
+      });
+    }, 1500); // 1.5-second delay
+  });
+};
+
+/**
+ * Fetches individual user credit score
+ * @returns Promise<CreditScore>
+ */
+export const fetchCreditScore = (): Promise<CreditScore> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const score = 720; // Mock credit score
+      let category = '';
+      
+      if (score >= 750) category = 'Excellent';
+      else if (score >= 700) category = 'Good';
+      else if (score >= 650) category = 'Fair';
+      else if (score >= 600) category = 'Poor';
+      else category = 'Very Poor';
+
+      resolve({
+        score,
+        maxScore: 800,
+        category,
+        lastUpdated: new Date()
+      });
+    }, 1200); // 1.2-second delay
+  });
+};
 
 /**
  * Fetches all teams with their employees - UNIFIED API CALL
@@ -483,6 +606,11 @@ export default {
   createTeam,
   deleteTeam,
   processPayrollPayments,
+  
+  // Client Company Information
+  fetchClientCompanyInfo,
+  fetchIndividualBalance,
+  fetchCreditScore,
   
   // Dashboard & Portfolio
   fetchDashboardData,

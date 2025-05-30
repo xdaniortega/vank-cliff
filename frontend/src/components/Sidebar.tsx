@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
-import { LayoutDashboard, Building2 } from 'lucide-react';
+import { LayoutDashboard, Building2, Building } from 'lucide-react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { isUserCompany } from '@/utils/userHelpers';
 
@@ -18,9 +18,12 @@ export default function Sidebar({ isOpen, isMobile, onClose, activeSection, onSe
   const userIsCompany = isUserCompany(user);
 
   // Dynamic sections based on user type
-  const sections = [
+  const sections = userIsCompany ? [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'company', label: userIsCompany ? 'Employees' : 'Company', icon: Building2 }
+    { id: 'company', label: 'Employees', icon: Building2 }
+  ] : [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'mycompany', label: 'My Company', icon: Building }
   ];
 
   const sidebarStyle = {
