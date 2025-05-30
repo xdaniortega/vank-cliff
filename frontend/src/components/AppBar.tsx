@@ -72,12 +72,24 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
         </button>
       )}
 
-      {/* Logo/Title with User Type Indicator */}
+      {/* Logo and Title with User Type Indicator */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: spacing.md
       }}>
+        {/* VankCliff Logo */}
+        <img 
+          src="/VankCliff_Logo.svg"
+          alt="VankCliff Logo"
+          style={{
+            height: '40px',
+            width: 'auto',
+            filter: 'brightness(0) invert(1)', // Makes the white logo visible on dark background
+            objectFit: 'contain'
+          }}
+        />
+        
         <h1 style={{
           fontFamily: typography.fontFamily,
           fontSize: typography.fontSize.xl,

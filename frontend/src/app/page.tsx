@@ -6,6 +6,7 @@ import Sidebar from '@/components/Sidebar';
 import MainContent from '@/components/MainContent';
 import AuthGuard from '@/components/AuthGuard';
 import { useResponsive } from '@/hooks/useResponsive';
+import { fetchDashboardData, DashboardData } from '@/api/api_calls';
 
 export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -14,7 +15,7 @@ export default function Home() {
   
   const [dataState, setDataState] = useState<{
     isLoading: boolean;
-    data: any;
+    data: DashboardData | null;
     isHardcoded: boolean;
   }>({
     isLoading: true,
@@ -23,31 +24,23 @@ export default function Home() {
   });
 
   useEffect(() => {
-    // Simulate API loading delay
-    const timer = setTimeout(() => {
-      setDataState({
-        isLoading: false,
-        data: {
-          // Simulated loaded data
-          dashboardStats: {
-            totalUsers: 1087,
-            activeProjects: 32,
-            completedTasks: 756,
-            revenue: '$98,230'
-          },
-          projects: [
-            { id: 1, name: 'Blockchain Explorer', status: 'active', progress: 60 },
-            { id: 2, name: 'Smart Contract Audit', status: 'completed', progress: 100 }
-          ],
-          notifications: [
-            { id: 1, message: 'System update completed', time: '5 minutes ago' }
-          ]
-        },
-        isHardcoded: false
+    // Use centralized API call for dashboard data
+    fetchDashboardData()
+      .then((dashboardData) => {
+        setDataState({
+          isLoading: false,
+          data: dashboardData,
+          isHardcoded: false
+        });
+      })
+      .catch((error) => {
+        console.error('Error fetching dashboard data:', error);
+        setDataState({
+          isLoading: false,
+          data: null,
+          isHardcoded: false
+        });
       });
-    }, 1500); // 1.5 second delay to show loading
-
-    return () => clearTimeout(timer);
   }, []);
 
   const handleMenuToggle = () => {
