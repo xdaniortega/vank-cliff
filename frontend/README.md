@@ -1,4 +1,4 @@
-# CryptoManager - ETH Prague 2025
+# Vank Cliff
 
 A comprehensive crypto portfolio management platform built with Next.js 15, React 19, and Dynamic.xyz for Web3 authentication.
 
@@ -24,8 +24,8 @@ A comprehensive crypto portfolio management platform built with Next.js 15, Reac
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/your-username/ETHPrague_2025.git
-cd ETHPrague_2025
+git clone https://github.com/your-username/vank-cliff.git
+cd vank-cliff
 ```
 
 ### 2. Install dependencies
@@ -70,6 +70,8 @@ src/
 │   ├── LoginPage.tsx      # Login/auth page
 │   ├── MainContent.tsx    # Main content area
 │   └── Sidebar.tsx        # Navigation sidebar
+├── constants/             # App constants
+│   └── app.ts             # Centralized app constants
 ├── hooks/                 # Custom React hooks
 │   └── useResponsive.ts   # Mobile detection hook
 ├── providers/             # Context providers
@@ -91,6 +93,16 @@ export const colors = {
   mint: '#B9FAF8',         // Mint/cyan
   // ... more colors
 }
+```
+
+## App Constants
+
+All app-related constants are centralized in `src/constants/app.ts`:
+
+```typescript
+export const APP_NAME = 'Vank Cliff'
+export const APP_DESCRIPTION = 'Advanced crypto portfolio management and trading platform'
+// ... more constants
 ```
 
 ## Authentication Flow

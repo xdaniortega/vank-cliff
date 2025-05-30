@@ -3,6 +3,7 @@
 import { DynamicContextProvider } from '@dynamic-labs/sdk-react-core';
 import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { ReactNode } from 'react';
+import { APP_NAME } from '@/constants/app';
 
 interface DynamicProviderProps {
   children: ReactNode;
@@ -40,7 +41,7 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
       settings={{
         environmentId,
         walletConnectors: [EthereumWalletConnectors],
-        appName: 'CryptoManager',
+        appName: APP_NAME,
         appLogoUrl: '/logo.png', // You can add a logo later
         
         // Customize the appearance

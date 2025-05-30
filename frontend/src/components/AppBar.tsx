@@ -2,6 +2,7 @@
 
 import { colors, typography, spacing } from '@/theme/colors';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { APP_NAME } from '@/constants/app';
 
 interface AppBarProps {
   onMenuToggle: () => void;
@@ -74,7 +75,7 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
         color: 'white',
         margin: 0
       }}>
-        CryptoManager
+        {APP_NAME}
       </h1>
 
       {/* Right side - User info and actions */}

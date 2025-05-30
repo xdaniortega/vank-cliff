@@ -2,6 +2,7 @@
 
 import { colors, spacing, typography } from '@/theme/colors';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { APP_NAME } from '@/constants/app';
 
 export default function LoginPage() {
   const { setShowAuthFlow } = useDynamicContext();
@@ -35,7 +36,7 @@ export default function LoginPage() {
             color: colors.primary,
             marginBottom: spacing.md
           }}>
-            CryptoManager
+            {APP_NAME}
           </h1>
           <p style={{
             fontSize: typography.fontSize.lg,

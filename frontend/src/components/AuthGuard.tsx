@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import LoadingCard from './LoadingCard';
 import LoginPage from './LoginPage';
 import { colors, spacing } from '@/theme/colors';
+import { APP_NAME } from '@/constants/app';
 
 interface AuthGuardProps {
 	children: React.ReactNode;
@@ -40,7 +41,7 @@ export default function AuthGuard({ children }: AuthGuardProps)
 			width: '100%'
 			}}>
 			<LoadingCard 
-				title="Initializing CryptoManager"
+				title={`Initializing ${APP_NAME}`}
 				showSpinner={true}
 			>
 				<p>Setting up your secure connection...</p>
