@@ -1,8 +1,10 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
+import { User, Building2 } from 'lucide-react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { APP_NAME } from '@/constants/app';
+import { isUserCompany } from '@/utils/userHelpers';
 
 interface AppBarProps {
   onMenuToggle: () => void;
@@ -11,6 +13,9 @@ interface AppBarProps {
 
 export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
   const { user, handleLogOut } = useDynamicContext();
+
+  // Check if user is a company based on metadata
+  const userIsCompany = isUserCompany(user);
 
   return (
     <header style={{
@@ -67,16 +72,45 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
         </button>
       )}
 
-      {/* Logo/Title */}
-      <h1 style={{
-        fontFamily: typography.fontFamily,
-        fontSize: typography.fontSize.xl,
-        fontWeight: typography.fontWeight.bold,
-        color: 'white',
-        margin: 0
+      {/* Logo/Title with User Type Indicator */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: spacing.md
       }}>
-        {APP_NAME}
-      </h1>
+        <h1 style={{
+          fontFamily: typography.fontFamily,
+          fontSize: typography.fontSize.xl,
+          fontWeight: typography.fontWeight.bold,
+          color: 'white',
+          margin: 0
+        }}>
+          {APP_NAME}
+        </h1>
+        
+        {/* User Type Indicator */}
+        {user && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            backgroundColor: 'rgba(255, 255, 255, 0.15)',
+            color: 'white',
+            padding: `${spacing.xs} ${spacing.sm}`,
+            borderRadius: '12px',
+            fontSize: typography.fontSize.xs,
+            fontWeight: typography.fontWeight.medium,
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            gap: spacing.xs
+          }}>
+            {userIsCompany ? (
+              <Building2 size={14} color="white" strokeWidth={2} />
+            ) : (
+              <User size={14} color="white" strokeWidth={2} />
+            )}
+            {userIsCompany ? 'Company' : 'Client'}
+          </div>
+        )}
+      </div>
 
       {/* Right side - User info and actions */}
       <div style={{

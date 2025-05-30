@@ -1,6 +1,9 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
+import { LayoutDashboard, Building2 } from 'lucide-react';
+import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { isUserCompany } from '@/utils/userHelpers';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -10,22 +13,21 @@ interface SidebarProps {
   onSectionChange: (section: string) => void;
 }
 
-const sections = [
-  { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-  { id: 'portfolio', label: 'Portfolio', icon: '💼' },
-  { id: 'trading', label: 'Trading', icon: '📈' },
-  { id: 'staking', label: 'Staking', icon: '🔐' },
-  { id: 'defi', label: 'DeFi', icon: '🏛️' },
-  { id: 'nfts', label: 'NFTs', icon: '🎨' },
-  { id: 'settings', label: 'Settings', icon: '⚙️' }
-];
-
 export default function Sidebar({ isOpen, isMobile, onClose, activeSection, onSectionChange }: SidebarProps) {
+  const { user } = useDynamicContext();
+  const userIsCompany = isUserCompany(user);
+
+  // Dynamic sections based on user type
+  const sections = [
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'company', label: userIsCompany ? 'Employees' : 'Company', icon: Building2 }
+  ];
+
   const sidebarStyle = {
     position: 'fixed' as const,
     top: '64px',
-    left: isMobile ? (isOpen ? '0' : '-280px') : '0',
-    width: '280px',
+    left: isMobile ? (isOpen ? '0' : '-240px') : '0',
+    width: '240px',
     height: 'calc(100vh - 64px)',
     backgroundColor: colors.surface,
     borderRight: `1px solid ${colors.border}`,
@@ -74,47 +76,52 @@ export default function Sidebar({ isOpen, isMobile, onClose, activeSection, onSe
             margin: 0,
             padding: 0
           }}>
-            {sections.map((section) => (
-              <li key={section.id} style={{ marginBottom: spacing.xs }}>
-                <button
-                  onClick={() => {
-                    onSectionChange(section.id);
-                    if (isMobile) onClose();
-                  }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: spacing.md,
-                    padding: spacing.md,
-                    border: 'none',
-                    borderRadius: '8px',
-                    background: activeSection === section.id ? colors.light : 'transparent',
-                    color: activeSection === section.id ? colors.primary : colors.text.primary,
-                    fontFamily: typography.fontFamily,
-                    fontSize: typography.fontSize.base,
-                    fontWeight: activeSection === section.id ? typography.fontWeight.medium : typography.fontWeight.normal,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (activeSection !== section.id) {
-                      e.currentTarget.style.backgroundColor = colors.border;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (activeSection !== section.id) {
-                      e.currentTarget.style.backgroundColor = 'transparent';
-                    }
-                  }}
-                >
-                  <span style={{ fontSize: typography.fontSize.lg }}>
-                    {section.icon}
-                  </span>
-                  <span>{section.label}</span>
-                </button>
-              </li>
-            ))}
+            {sections.map((section) => {
+              const IconComponent = section.icon;
+              return (
+                <li key={section.id} style={{ marginBottom: spacing.xs }}>
+                  <button
+                    onClick={() => {
+                      onSectionChange(section.id);
+                      if (isMobile) onClose();
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      padding: spacing.md,
+                      border: 'none',
+                      borderRadius: '8px',
+                      background: activeSection === section.id ? colors.light : 'transparent',
+                      color: activeSection === section.id ? colors.primary : colors.text.primary,
+                      fontFamily: typography.fontFamily,
+                      fontSize: typography.fontSize.base,
+                      fontWeight: activeSection === section.id ? typography.fontWeight.medium : typography.fontWeight.normal,
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (activeSection !== section.id) {
+                        e.currentTarget.style.backgroundColor = colors.border;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (activeSection !== section.id) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }
+                    }}
+                  >
+                    <IconComponent 
+                      size={18} 
+                      color={activeSection === section.id ? colors.primary : colors.text.primary}
+                      strokeWidth={2}
+                    />
+                    <span>{section.label}</span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       </nav>

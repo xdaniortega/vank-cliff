@@ -3,8 +3,12 @@
 import { colors, typography, spacing } from '@/theme/colors';
 import { useState, useEffect } from 'react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
+import { isUserCompany } from '@/utils/userHelpers';
 import LoadingCard from './LoadingCard';
 import LoadingSpinner from './LoadingSpinner';
+import IndividualDashboard from './IndividualDashboard';
+import CompanyDashboard from './CompanyDashboard';
+import { Building2 } from 'lucide-react';
 
 interface MainContentProps {
   activeSection: string;
@@ -177,497 +181,270 @@ const TransactionsCard = ({ isLoading }: { isLoading: boolean }) => {
   );
 };
 
-// Company-specific widget
-const CompanyDashboardWidget = ({ isLoading }: { isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <LoadingCard title="Loading Company Dashboard..." showSpinner={true}>
-        <p>Setting up your corporate crypto management tools...</p>
-      </LoadingCard>
-    );
-  }
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`,
-      marginBottom: spacing.lg
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: spacing.lg
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          backgroundColor: colors.primary,
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: spacing.md
-        }}>
-          <span style={{ color: 'white', fontSize: '20px' }}>🏢</span>
-        </div>
-        <h3 style={{
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary,
-          margin: 0
-        }}>
-          Corporate Dashboard
-        </h3>
-      </div>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: spacing.md,
-        marginBottom: spacing.lg
-      }}>
-        <div style={{
-          backgroundColor: colors.light,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0'
-          }}>
-            Treasury Balance
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: colors.primary,
-            margin: 0
-          }}>
-            $2,456,789
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.mint,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0'
-          }}>
-            Employee Wallets
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: colors.primary,
-            margin: 0
-          }}>
-            147
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.accent,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: 'white',
-            margin: '0 0 8px 0'
-          }}>
-            Monthly Volume
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: 'white',
-            margin: 0
-          }}>
-            $892K
-          </p>
-        </div>
-      </div>
-      
-      <div style={{
-        display: 'flex',
-        gap: spacing.md,
-        flexWrap: 'wrap'
-      }}>
-        <button style={{
-          backgroundColor: colors.primary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Manage Treasury
-        </button>
-        <button style={{
-          backgroundColor: colors.secondary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Employee Payments
-        </button>
-        <button style={{
-          backgroundColor: 'transparent',
-          color: colors.primary,
-          border: `2px solid ${colors.primary}`,
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Compliance Reports
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Individual user-specific widget
-const IndividualDashboardWidget = ({ isLoading }: { isLoading: boolean }) => {
-  if (isLoading) {
-    return (
-      <LoadingCard title="Loading Personal Dashboard..." showSpinner={true}>
-        <p>Setting up your personal crypto portfolio...</p>
-      </LoadingCard>
-    );
-  }
-
-  return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`,
-      marginBottom: spacing.lg
-    }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginBottom: spacing.lg
-      }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          backgroundColor: colors.secondary,
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: spacing.md
-        }}>
-          <span style={{ color: 'white', fontSize: '20px' }}>👤</span>
-        </div>
-        <h3 style={{
-          fontSize: typography.fontSize.lg,
-          fontWeight: typography.fontWeight.semibold,
-          color: colors.text.primary,
-          margin: 0
-        }}>
-          Personal Portfolio
-        </h3>
-      </div>
-      
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: spacing.md,
-        marginBottom: spacing.lg
-      }}>
-        <div style={{
-          backgroundColor: colors.light,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0'
-          }}>
-            Total Balance
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: colors.primary,
-            margin: 0
-          }}>
-            $24,567.89
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.mint,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0'
-          }}>
-            24h Change
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: '#22c55e',
-            margin: 0
-          }}>
-            +5.2%
-          </p>
-        </div>
-        
-        <div style={{
-          backgroundColor: colors.accent,
-          padding: spacing.md,
-          borderRadius: '8px'
-        }}>
-          <h4 style={{
-            fontSize: typography.fontSize.sm,
-            fontWeight: typography.fontWeight.medium,
-            color: 'white',
-            margin: '0 0 8px 0'
-          }}>
-            Holdings
-          </h4>
-          <p style={{
-            fontSize: typography.fontSize.xl,
-            fontWeight: typography.fontWeight.bold,
-            color: 'white',
-            margin: 0
-          }}>
-            12 Assets
-          </p>
-        </div>
-      </div>
-      
-      <div style={{
-        display: 'flex',
-        gap: spacing.md,
-        flexWrap: 'wrap'
-      }}>
-        <button style={{
-          backgroundColor: colors.primary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Buy Crypto
-        </button>
-        <button style={{
-          backgroundColor: colors.secondary,
-          color: 'white',
-          border: 'none',
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          Send/Receive
-        </button>
-        <button style={{
-          backgroundColor: 'transparent',
-          color: colors.primary,
-          border: `2px solid ${colors.primary}`,
-          padding: `${spacing.sm} ${spacing.md}`,
-          borderRadius: '8px',
-          fontSize: typography.fontSize.sm,
-          fontWeight: typography.fontWeight.medium,
-          cursor: 'pointer'
-        }}>
-          View Reports
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Utility function to safely check if user is a company
-const isUserCompany = (user: any): boolean => {
-  if (!user?.metadata || typeof user.metadata !== 'object') {
-    return false;
-  }
-  
-  const metadata = user.metadata as Record<string, any>;
-  return metadata.UserIsCompany === true || metadata.UserIsCompany === 'true';
-};
-
-const sectionContent = {
-  dashboard: {
-    title: 'Dashboard',
-    content: (isLoading: boolean) => {
-      const { user } = useDynamicContext();
-      
-      // Check if user is a company based on metadata
-      const userIsCompany = isUserCompany(user);
-      
-      return (
-        <div>
-          {/* Show different widgets based on user type */}
-          {userIsCompany ? (
-            <CompanyDashboardWidget isLoading={isLoading} />
-          ) : (
-            <IndividualDashboardWidget isLoading={isLoading} />
-          )}
-          
-          {/* Common components shown to both user types */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-            gap: spacing.lg,
-            marginBottom: spacing.xl
-          }}>
-            <PortfolioCard title="Portfolio Value" isLoading={isLoading} />
-            <QuickActionsCard isLoading={isLoading} />
-          </div>
-          <TransactionsCard isLoading={isLoading} />
-        </div>
-      );
-    }
-  },
-  portfolio: {
-    title: 'Portfolio',
-    content: (isLoading: boolean) => (
-      isLoading ? (
-        <LoadingCard title="Loading Portfolio..." showSpinner={true}>
-          <p>Analyzing your crypto holdings and performance...</p>
-        </LoadingCard>
-      ) : (
-        <div style={{
-          backgroundColor: 'white',
-          padding: spacing.xl,
-          borderRadius: '12px',
-          border: `1px solid ${colors.border}`,
-          boxShadow: `0 2px 8px ${colors.shadow}`
-        }}>
-          <h3 style={{
-            fontSize: typography.fontSize.lg,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: spacing.lg
-          }}>
-            Your Portfolio
-          </h3>
-          <p style={{
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.base
-          }}>
-            Portfolio management features will be implemented here. Connect your wallet to view your holdings.
-          </p>
-        </div>
-      )
-    )
-  },
-  trading: {
-    title: 'Trading',
-    content: (isLoading: boolean) => (
-      isLoading ? (
-        <LoadingCard title="Loading Trading Interface..." showSpinner={true}>
-          <p>Setting up advanced trading tools and market data...</p>
-        </LoadingCard>
-      ) : (
-        <div style={{
-          backgroundColor: 'white',
-          padding: spacing.xl,
-          borderRadius: '12px',
-          border: `1px solid ${colors.border}`,
-          boxShadow: `0 2px 8px ${colors.shadow}`
-        }}>
-          <h3 style={{
-            fontSize: typography.fontSize.lg,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: spacing.lg
-          }}>
-            Trading Interface
-          </h3>
-          <p style={{
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.base
-          }}>
-            Advanced trading features and charts will be available here.
-          </p>
-        </div>
-      )
-    )
-  }
-};
-
 export default function MainContent({ activeSection, isMobile }: MainContentProps) {
+  // Always call hooks first - this must be consistent across renders
   const { loading } = useAsyncData(activeSection);
-  const { user } = useDynamicContext();
+  const dynamicContext = useDynamicContext();
+  const { user } = dynamicContext;
   
   // Check if user is a company based on metadata
   const userIsCompany = isUserCompany(user);
 
-  const section = sectionContent[activeSection as keyof typeof sectionContent] || {
-    title: activeSection.charAt(0).toUpperCase() + activeSection.slice(1),
-    content: (isLoading: boolean) => (
-      isLoading ? (
-        <LoadingCard title={`Loading ${activeSection}...`} showSpinner={true}>
-          <p>Preparing your {activeSection} data...</p>
-        </LoadingCard>
-      ) : (
-        <div style={{
-          backgroundColor: 'white',
-          padding: spacing.xl,
-          borderRadius: '12px',
-          border: `1px solid ${colors.border}`,
-          boxShadow: `0 2px 8px ${colors.shadow}`
-        }}>
-          <h3 style={{
-            fontSize: typography.fontSize.lg,
-            fontWeight: typography.fontWeight.semibold,
-            color: colors.text.primary,
-            marginBottom: spacing.lg
+  // Define content after all hooks are called
+  const renderSectionContent = () => {
+    switch (activeSection) {
+      case 'dashboard':
+        return (
+          <div>
+            {/* Show different dashboards based on user type */}
+            {userIsCompany ? (
+              <CompanyDashboard isLoading={loading} />
+            ) : (
+              <IndividualDashboard isLoading={loading} />
+            )}
+          </div>
+        );
+      
+      case 'company':
+        return loading ? (
+          <LoadingCard title={userIsCompany ? "Loading Employees..." : "Loading Company..."} showSpinner={true}>
+            <p>{userIsCompany ? "Fetching employee data and management tools..." : "Setting up company management features..."}</p>
+          </LoadingCard>
+        ) : (
+          <div style={{
+            backgroundColor: 'white',
+            padding: spacing.xl,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`,
+            boxShadow: `0 2px 8px ${colors.shadow}`
           }}>
-            {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-          </h3>
-          <p style={{
-            color: colors.text.secondary,
-            fontSize: typography.fontSize.base
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: spacing.lg
+            }}>
+              <div style={{
+                width: '48px',
+                height: '48px',
+                backgroundColor: colors.primary,
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: spacing.md
+              }}>
+                <Building2 
+                  size={24} 
+                  color="white"
+                  strokeWidth={2}
+                />
+              </div>
+              <h3 style={{
+                fontSize: typography.fontSize.lg,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.text.primary,
+                margin: 0
+              }}>
+                {userIsCompany ? 'Employee Management' : 'Company Features'}
+              </h3>
+            </div>
+            
+            {userIsCompany ? (
+              <div>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+                  gap: spacing.md,
+                  marginBottom: spacing.lg
+                }}>
+                  <div style={{
+                    backgroundColor: colors.light,
+                    padding: spacing.md,
+                    borderRadius: '8px'
+                  }}>
+                    <h4 style={{
+                      fontSize: typography.fontSize.sm,
+                      fontWeight: typography.fontWeight.medium,
+                      color: colors.text.secondary,
+                      margin: '0 0 8px 0'
+                    }}>
+                      Total Employees
+                    </h4>
+                    <p style={{
+                      fontSize: typography.fontSize.xl,
+                      fontWeight: typography.fontWeight.bold,
+                      color: colors.primary,
+                      margin: 0
+                    }}>
+                      147
+                    </p>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: colors.mint,
+                    padding: spacing.md,
+                    borderRadius: '8px'
+                  }}>
+                    <h4 style={{
+                      fontSize: typography.fontSize.sm,
+                      fontWeight: typography.fontWeight.medium,
+                      color: colors.text.secondary,
+                      margin: '0 0 8px 0'
+                    }}>
+                      Active Wallets
+                    </h4>
+                    <p style={{
+                      fontSize: typography.fontSize.xl,
+                      fontWeight: typography.fontWeight.bold,
+                      color: colors.primary,
+                      margin: 0
+                    }}>
+                      142
+                    </p>
+                  </div>
+                  
+                  <div style={{
+                    backgroundColor: colors.accent,
+                    padding: spacing.md,
+                    borderRadius: '8px'
+                  }}>
+                    <h4 style={{
+                      fontSize: typography.fontSize.sm,
+                      fontWeight: typography.fontWeight.medium,
+                      color: 'white',
+                      margin: '0 0 8px 0'
+                    }}>
+                      Monthly Payroll
+                    </h4>
+                    <p style={{
+                      fontSize: typography.fontSize.xl,
+                      fontWeight: typography.fontWeight.bold,
+                      color: 'white',
+                      margin: 0
+                    }}>
+                      $892K
+                    </p>
+                  </div>
+                </div>
+                
+                <div style={{
+                  display: 'flex',
+                  gap: spacing.md,
+                  flexWrap: 'wrap'
+                }}>
+                  <button style={{
+                    backgroundColor: colors.primary,
+                    color: 'white',
+                    border: 'none',
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    borderRadius: '8px',
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: typography.fontWeight.medium,
+                    cursor: 'pointer'
+                  }}>
+                    Add Employee
+                  </button>
+                  <button style={{
+                    backgroundColor: colors.secondary,
+                    color: 'white',
+                    border: 'none',
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    borderRadius: '8px',
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: typography.fontWeight.medium,
+                    cursor: 'pointer'
+                  }}>
+                    Process Payroll
+                  </button>
+                  <button style={{
+                    backgroundColor: 'transparent',
+                    color: colors.primary,
+                    border: `2px solid ${colors.primary}`,
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    borderRadius: '8px',
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: typography.fontWeight.medium,
+                    cursor: 'pointer'
+                  }}>
+                    View Reports
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p style={{
+                  color: colors.text.secondary,
+                  fontSize: typography.fontSize.base,
+                  marginBottom: spacing.lg
+                }}>
+                  Company management features and tools will be available here.
+                </p>
+                <div style={{
+                  display: 'flex',
+                  gap: spacing.md,
+                  flexWrap: 'wrap'
+                }}>
+                  <button style={{
+                    backgroundColor: colors.primary,
+                    color: 'white',
+                    border: 'none',
+                    padding: `${spacing.sm} ${spacing.md}`,
+                    borderRadius: '8px',
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: typography.fontWeight.medium,
+                    cursor: 'pointer'
+                  }}>
+                    Upgrade to Company
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      
+      default:
+        return loading ? (
+          <LoadingCard title={`Loading ${activeSection}...`} showSpinner={true}>
+            <p>Preparing your {activeSection} data...</p>
+          </LoadingCard>
+        ) : (
+          <div style={{
+            backgroundColor: 'white',
+            padding: spacing.xl,
+            borderRadius: '12px',
+            border: `1px solid ${colors.border}`,
+            boxShadow: `0 2px 8px ${colors.shadow}`
           }}>
-            This section is coming soon. Stay tuned for updates!
-          </p>
-        </div>
-      )
-    )
+            <h3 style={{
+              fontSize: typography.fontSize.lg,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              marginBottom: spacing.lg
+            }}>
+              {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+            </h3>
+            <p style={{
+              color: colors.text.secondary,
+              fontSize: typography.fontSize.base
+            }}>
+              This section is coming soon. Stay tuned for updates!
+            </p>
+          </div>
+        );
+    }
+  };
+
+  const getSectionTitle = () => {
+    switch (activeSection) {
+      case 'dashboard': return 'Dashboard';
+      case 'company': return userIsCompany ? 'Employees' : 'Company';
+      default: return activeSection.charAt(0).toUpperCase() + activeSection.slice(1);
+    }
   };
 
   return (
     <main style={{
-      marginLeft: isMobile ? '0' : '280px',
+      marginLeft: isMobile ? '0' : '240px',
       marginTop: '64px',
       minHeight: 'calc(100vh - 64px)',
       backgroundColor: colors.background,
@@ -696,32 +473,16 @@ export default function MainContent({ activeSection, isMobile }: MainContentProp
               color: colors.text.primary,
               margin: 0
             }}>
-              {section.title}
+              {getSectionTitle()}
             </h1>
             {loading && <LoadingSpinner size="medium" />}
           </div>
           
-          {/* User type badge */}
-          {user && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              backgroundColor: userIsCompany ? colors.primary : colors.secondary,
-              color: 'white',
-              padding: `${spacing.xs} ${spacing.sm}`,
-              borderRadius: '16px',
-              fontSize: typography.fontSize.xs,
-              fontWeight: typography.fontWeight.medium
-            }}>
-              <span style={{ marginRight: spacing.xs }}>
-                {userIsCompany ? '🏢' : '👤'}
-              </span>
-              {userIsCompany ? 'Company Account' : 'Personal Account'}
-            </div>
-          )}
+          
+          
         </div>
         
-        {section.content(loading)}
+        {renderSectionContent()}
         
         {/* Extra content to demonstrate scrolling - only show when not loading */}
         {!loading && (
