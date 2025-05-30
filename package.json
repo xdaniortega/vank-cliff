@@ -1,0 +1,34 @@
+{
+  "name": "sc-hardhat-v3-template",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "npx hardhat test",
+    "lint": "prettier --write 'contracts/**/*.sol' 'test/**/*.ts' 'scripts/**/*.ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xdaniortega/sc-hardhat-v3-template.git"
+  },
+  "keywords": [],
+  "author": "Daniel Ortega <danielortegaberja@gmail.com>",
+  "license": "GNU",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/xdaniortega/sc-hardhat-v3-template/issues"
+  },
+  "homepage": "https://github.com/xdaniortega/sc-hardhat-v3-template#readme",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ignition": "^3.0.0-next.12",
+    "@nomicfoundation/hardhat-toolbox-viem": "^4.0.0-next.12",
+    "@types/node": "^22.15.23",
+    "forge-std": "github:foundry-rs/forge-std#v1.9.4",
+    "hardhat": "^3.0.0-next.12",
+    "typescript": "~5.5.0",
+    "viem": "^2.30.5",
+    "prettier": "^3.5.3",
+    "prettier-plugin-solidity": "^2.0.0",
+    "solhint": "^5.0.5"
+  }
+}
