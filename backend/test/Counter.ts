@@ -1,13 +1,13 @@
-import { describe, it } from "node:test";
-import { network } from "hardhat";
+import { describe, it } from 'node:test';
+import { network } from 'hardhat';
 // We don't have Ethereum specific assertions in Hardhat 3 yet
-import assert from "node:assert/strict";
+import assert from 'node:assert/strict';
 
 /*
  * `node:test` uses `describe` and `it` to define tests, similar to Mocha.
  * `describe` blocks support async functions, simplifying the setup of tests.
  */
-describe("Counter", async function () {
+describe('Counter', async function () {
   /*
    * In Hardhat 3, there isn't a single global connection to a network. Instead,
    * you have a `network` object that allows you to connect to different
@@ -57,8 +57,8 @@ describe("Counter", async function () {
   const { viem } = await network.connect();
   const publicClient = await viem.getPublicClient();
 
-  it("The sum of the Increment events should match the current value", async function () {
-    const counter = await viem.deployContract("Counter");
+  it('The sum of the Increment events should match the current value', async function () {
+    const counter = await viem.deployContract('Counter');
 
     // run a series of increments
     for (let i = 1n; i <= 10n; i++) {
@@ -68,7 +68,7 @@ describe("Counter", async function () {
     const events = await publicClient.getContractEvents({
       address: counter.address,
       abi: counter.abi,
-      eventName: "Increment",
+      eventName: 'Increment',
       fromBlock: 0n,
       strict: true,
     });
