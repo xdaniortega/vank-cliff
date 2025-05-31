@@ -33,6 +33,24 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
     );
   }
 
+  // Get the correct logo URL for Dynamic
+  const getLogoUrl = () => {
+    if (typeof window !== 'undefined') {
+      // Use the current domain with the correct path
+      const protocol = window.location.protocol;
+      const host = window.location.host;
+      const basePath = window.location.pathname.split('/')[1]; // Get first path segment
+      
+      // Check if we're on GitHub Pages
+      if (host.includes('github.io') && basePath && basePath !== '') {
+        return `${protocol}//${host}/${basePath}/VankCliff_Logo.svg`;
+      }
+      return `${protocol}//${host}/VankCliff_Logo.svg`;
+    }
+    // Fallback for server-side rendering
+    return '/VankCliff_Logo.svg';
+  };
+
   // Use type assertion to work around TypeScript issues
   const DynamicProvider = DynamicContextProvider as any;
 
@@ -42,7 +60,7 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
         environmentId,
         walletConnectors: [EthereumWalletConnectors],
         appName: APP_NAME,
-        appLogoUrl: '/logo.png', // You can add a logo later
+        appLogoUrl: getLogoUrl(),
         
         // Customize the appearance
         cssOverrides: `
