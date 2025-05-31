@@ -5,7 +5,17 @@ import {
   fetchAccountBalance, 
   convertNativeTokenToUsd,
   getChainConfig,
-  fetchLatestBlockNumber
+  fetchLatestBlockNumber,
+  fetchBlockscoutMeritUser,
+  fetchBlockscoutMeritLeaderboard,
+  distributeBlockscoutMerits,
+  getBlockscoutMeritAuthNonce,
+  loginBlockscoutMeritUser,
+  fetchBlockscoutMeritUserBalances,
+  fetchBlockscoutMeritUserLogs,
+  BlockscoutMeritUser,
+  BlockscoutMeritLeaderboard,
+  BlockscoutMeritActivityLog
 } from './blockscout-api';
 
 // Types and Interfaces
@@ -73,6 +83,24 @@ export interface CreditScore {
   maxScore: number;
   category: string;
   lastUpdated: Date;
+  extraMerits?: Merit[];
+}
+
+export interface Merit {
+  id: string;
+  type: 'employee_of_week';
+  title: string;
+  description: string;
+  awardedDate: Date;
+  companyAddress: string;
+  blockchainTxHash?: string;
+  meritValue: number; // Points added to credit score
+  distributionId?: string; // Blockscout distribution ID
+}
+
+export interface EmployeeMeritGrant {
+  employeeAddress: string;
+  merit: Merit;
 }
 
 export interface TreasuryBalance {
@@ -312,28 +340,273 @@ export const fetchIndividualBalance = async (
 };
 
 /**
- * Fetches individual user credit score
+ * Fetches enhanced credit score including Blockscout Merit integration
+ * @param userAddress - The user's wallet address for merit lookup
+ * @param chainId - The blockchain chain ID for merit lookup
  * @returns Promise<CreditScore>
  */
-export const fetchCreditScore = (): Promise<CreditScore> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const score = 720; // Mock credit score
+export const fetchCreditScore = async (
+  userAddress?: string,
+  chainId: string = '1'
+): Promise<CreditScore> => {
+  return new Promise(async (resolve) => {
+    setTimeout(async () => {
+      const baseScore = 700; // Mock credit score
       let category = '';
       
-      if (score >= 750) category = 'Excellent';
-      else if (score >= 700) category = 'Good';
-      else if (score >= 650) category = 'Fair';
-      else if (score >= 600) category = 'Poor';
-      else category = 'Very Poor';
+      // Fetch merits from Blockscout Merits API
+      let extraMerits: Merit[] = [];
+      let meritBonus = 0;
+      let blockscoutMeritBonus = 0;
+      
+      if (userAddress) {
+        try {
+          // Get Blockscout Merit user info
+          const blockscoutUser = await fetchBlockscoutMeritUser(userAddress);
+          
+          if (blockscoutUser) {
+            // Calculate bonus from Blockscout merits (1 merit = 1 point towards credit score)
+            const totalBalance = parseFloat(blockscoutUser.total_balance);
+            blockscoutMeritBonus = isNaN(totalBalance) ? 0 : Math.floor(totalBalance);
+            console.log(`🏆 Blockscout Merit bonus: ${blockscoutMeritBonus} points from ${blockscoutUser.total_balance} merits`);
+          }
+          
+          // Also get local merits for detailed display
+          extraMerits = await fetchEmployeeMerits(userAddress, chainId);
+          meritBonus = extraMerits.reduce((sum, merit) => {
+            const value = merit.meritValue || 0;
+            return sum + (isNaN(value) ? 0 : value);
+          }, 0);
+        } catch (error) {
+          console.error('Error fetching merits:', error);
+        }
+      }
+      
+      // Use the higher of the two merit bonuses (Blockscout or local tracking)
+      const totalMeritBonus = Math.max(
+        isNaN(blockscoutMeritBonus) ? 0 : blockscoutMeritBonus, 
+        isNaN(meritBonus) ? 0 : meritBonus
+      );
+      const totalScore = baseScore + totalMeritBonus;
+      
+      // Ensure score is not NaN
+      const finalScore = isNaN(totalScore) ? 0 : totalScore;
+      
+      if (finalScore >= 750) category = 'Excellent';
+      else if (finalScore >= 700) category = 'Good';
+      else if (finalScore >= 650) category = 'Fair';
+      else if (finalScore >= 600) category = 'Poor';
+      else if (finalScore > 0) category = 'Very Poor';
+      else category = 'No Score';
 
       resolve({
-        score,
+        score: finalScore,
         maxScore: 800,
         category,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        extraMerits
       });
     }, 1200); // 1.2-second delay
+  });
+};
+
+/**
+ * Grants Employee of the Week merit to an employee using real Blockscout Merits API
+ * @param employeeAddress - The employee's wallet address
+ * @param companyAddress - The company's wallet address
+ * @param chainId - The blockchain chain ID
+ * @returns Promise<{ success: boolean; merit?: Merit; error?: string }>
+ */
+export const grantEmployeeOfWeekMerit = async (
+  employeeAddress: string,
+  companyAddress: string,
+  chainId: string = '1'
+): Promise<{ success: boolean; merit?: Merit; error?: string }> => {
+  try {
+    // Check if company can grant merit (global cooldown)
+    const cooldownCheck = await checkMeritCooldown(companyAddress);
+    if (!cooldownCheck.canGrant) {
+      return {
+        success: false,
+        error: 'Employee of the Week merit can only be granted once every 5 seconds (testing mode). This applies to all employees.'
+      };
+    }
+
+    console.log(`🏆 Granting merit to ${employeeAddress} from company ${companyAddress}...`);
+
+    // Use Blockscout Merits API to distribute merits
+    const meritAmount = '1'; // 1 merit points
+    const description = `Employee of the Week award from company ${companyAddress}. Recognized for outstanding performance and contribution to the team.`;
+    
+    const distributionResult = await distributeBlockscoutMerits(
+      employeeAddress,
+      meritAmount,
+      description,
+      companyAddress
+    );
+    
+    if (!distributionResult.success) {
+      return {
+        success: false,
+        error: distributionResult.error || 'Failed to distribute merits via Blockscout'
+      };
+    }
+
+    // Create the merit object for local tracking
+    const merit: Merit = {
+      id: `merit_${Date.now()}_${Math.random().toString(36).substring(7)}`,
+      type: 'employee_of_week',
+      title: 'Employee of the Week',
+      description: 'Recognized for outstanding performance and contribution to the team',
+      awardedDate: new Date(),
+      companyAddress,
+      meritValue: 1,
+      distributionId: `employee_of_week_${companyAddress}_${Date.now()}`
+    };
+
+    // Store last grant timestamp for cooldown (company-wide)
+    const lastGrantKey = `last_merit_${companyAddress}`;
+    localStorage.setItem(lastGrantKey, Date.now().toString());
+
+    // Store merit locally for immediate display
+    const meritsKey = `merits_${employeeAddress}`;
+    const existingMerits = JSON.parse(localStorage.getItem(meritsKey) || '[]');
+    existingMerits.push(merit);
+    localStorage.setItem(meritsKey, JSON.stringify(existingMerits));
+
+    console.log(`✅ Merit granted successfully via Blockscout! Distributed to ${distributionResult.response?.accounts_distributed} accounts, Created ${distributionResult.response?.accounts_created} new accounts`);
+
+    return {
+      success: true,
+      merit
+    };
+  } catch (error) {
+    console.error('❌ Error granting merit:', error);
+    return {
+      success: false,
+      error: 'Failed to grant merit. Please try again.'
+    };
+  }
+};
+
+/**
+ * Fetches employee merits from Blockscout Merits API
+ * @param employeeAddress - The employee's wallet address
+ * @param chainId - The blockchain chain ID
+ * @returns Promise<Merit[]>
+ */
+export const fetchEmployeeMerits = async (
+  employeeAddress: string,
+  chainId: string = '1'
+): Promise<Merit[]> => {
+  try {
+    console.log(`🔍 Fetching merits for ${employeeAddress} from Blockscout Merits API...`);
+
+    // First, try to get basic merit user info
+    const meritUser = await fetchBlockscoutMeritUser(employeeAddress);
+    
+    if (!meritUser) {
+      console.log(`📭 No merit user found for ${employeeAddress} in Blockscout system`);
+      
+      // Fallback to localStorage for immediate display of recent merits
+      const meritsKey = `merits_${employeeAddress}`;
+      const localMerits = JSON.parse(localStorage.getItem(meritsKey) || '[]');
+      
+      return localMerits.map((merit: any) => ({
+        ...merit,
+        awardedDate: new Date(merit.awardedDate)
+      }));
+    }
+
+    console.log(`✅ Found merit user with ${meritUser.total_balance} total merits`);
+
+    // Try to get detailed activity logs (this requires user authentication, so we'll handle gracefully)
+    let activityLogs: BlockscoutMeritActivityLog[] = [];
+    
+    // For now, we'll create merit objects based on the user's total balance
+    // In a real implementation, you'd authenticate the user and get their activity logs
+    const totalMerits = parseFloat(meritUser.total_balance);
+    const estimatedEmployeeOfWeekMerits = Math.floor(totalMerits); // Assuming 1 merits per award
+    
+    const merits: Merit[] = [];
+    
+    // Create merit entries based on estimated awards (this is a simplified approach)
+    for (let i = 0; i < estimatedEmployeeOfWeekMerits; i++) {
+      const merit: Merit = {
+        id: `blockscout_merit_${i}_${employeeAddress}`,
+        type: 'employee_of_week',
+        title: 'Employee of the Week',
+        description: 'Recognized for outstanding performance and contribution to the team (from Blockscout)',
+        awardedDate: new Date(meritUser.registered_at),
+        companyAddress: 'company_via_blockscout',
+        meritValue: 1
+      };
+      merits.push(merit);
+    }
+
+    // Merge with localStorage merits for any recent ones not yet reflected in Blockscout
+    const meritsKey = `merits_${employeeAddress}`;
+    const localMerits = JSON.parse(localStorage.getItem(meritsKey) || '[]');
+    
+    const allMerits = [
+      ...merits,
+      ...localMerits.map((merit: any) => ({
+        ...merit,
+        awardedDate: new Date(merit.awardedDate)
+      }))
+    ];
+
+    // Sort by date (newest first)
+    allMerits.sort((a, b) => b.awardedDate.getTime() - a.awardedDate.getTime());
+
+    console.log(`✅ Found ${allMerits.length} total merits for ${employeeAddress}`);
+    return allMerits;
+  } catch (error) {
+    console.error('❌ Error fetching employee merits:', error);
+    
+    // Fallback to localStorage
+    const meritsKey = `merits_${employeeAddress}`;
+    const localMerits = JSON.parse(localStorage.getItem(meritsKey) || '[]');
+    
+    return localMerits.map((merit: any) => ({
+      ...merit,
+      awardedDate: new Date(merit.awardedDate)
+    }));
+  }
+};
+
+/**
+ * Check if company can grant merit (weekly cooldown check)
+ * This now applies to ALL merit granting for the company, not per-employee
+ * @param companyAddress - The company's wallet address
+ * @returns Promise<{ canGrant: boolean; timeRemaining?: number }>
+ */
+export const checkMeritCooldown = async (
+  companyAddress: string
+): Promise<{ canGrant: boolean; timeRemaining?: number }> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const lastGrantKey = `last_merit_${companyAddress}`;
+      const lastGrant = localStorage.getItem(lastGrantKey);
+      const now = Date.now();
+      
+      if (!lastGrant) {
+        resolve({ canGrant: true });
+        return;
+      }
+      
+      const timeSinceLastGrant = now - parseInt(lastGrant);
+      const cooldownPeriod = 5000; // 5 seconds for testing (would be 1 week in production)
+      
+      if (timeSinceLastGrant >= cooldownPeriod) {
+        resolve({ canGrant: true });
+      } else {
+        resolve({
+          canGrant: false,
+          timeRemaining: cooldownPeriod - timeSinceLastGrant
+        });
+      }
+    }, 500);
   });
 };
 
@@ -361,18 +634,18 @@ export const fetchClientCompanyInfo = (): Promise<ClientCompanyInfo> => {
         },
         industry: 'Blockchain & Financial Technology',
         foundedYear: 2019,
-        employeeCount: 247,
+        employeeCount: 1, // Only one employee
         website: 'https://vankcliff.com',
         description: 'VankCliff Technologies is a leading blockchain and financial technology company focused on creating innovative solutions for the future of digital finance. We specialize in decentralized applications, smart contracts, and cutting-edge fintech solutions.',
         employmentDetails: {
           employeeId: 'emp_vc_2024_0156',
-          employeeName: 'John Doe', // In real app, this would come from user context
+          employeeName: 'Mok Perdices Ortega',
           position: 'Senior Blockchain Developer',
-          department: 'Engineering',
+          department: 'Development',
           startDate: new Date('2023-03-15'),
           employmentType: 'Full-time',
           status: 'Active',
-          manager: 'Sarah Chen',
+          manager: 'CEO',
           workLocation: 'Remote'
         }
       });
@@ -390,110 +663,58 @@ export const fetchTeamsAndEmployees = (): Promise<TeamsAndEmployeesData> => {
       const teams: Team[] = [
         {
           id: '1',
-          name: 'Marketing',
+          name: 'Development',
           budget: 0, // Will be calculated from employee salaries
-          color: '#FF6B6B',
+          color: '#4ECDC4',
           members: [
             {
               id: '1',
-              name: 'Alice Johnson',
-              salary: 5500,
-              walletAddress: '0x742d35Cc6634C0532925a3b8D2F0f8e7',
-              teamId: '1'
-            },
-            {
-              id: '2',
-              name: 'Bob Smith',
-              salary: 4200,
-              walletAddress: '0x8ba1f109551bD432803012645Hac136c',
+              name: 'Mok Perdices Ortega',
+              salary: 7500,
+              walletAddress: '0x6Bf22C8B5a12bC8aEb8467846c91B4Efefa0edb7',
               teamId: '1'
             }
           ]
         },
         {
           id: '2',
-          name: 'Developers',
-          budget: 0, // Will be calculated from employee salaries
-          color: '#4ECDC4',
-          members: [
-            {
-              id: '3',
-              name: 'Carol Davis',
-              salary: 6800,
-              walletAddress: '0x1a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p',
-              teamId: '2'
-            },
-            {
-              id: '4',
-              name: 'David Wilson',
-              salary: 3900,
-              walletAddress: '0x9f8e7d6c5b4a3928171605f4c3b2a190',
-              teamId: '2'
-            },
-            {
-              id: '5',
-              name: 'Eva Martinez',
-              salary: 7200,
-              walletAddress: '0x5d4c3b2a1928374650ebcdef123456789',
-              teamId: '2'
-            }
-          ]
+          name: 'Marketing',
+          budget: 0,
+          color: '#FF6B6B',
+          members: []
         },
         {
           id: '3',
           name: 'Design',
-          budget: 0, // Will be calculated from employee salaries
+          budget: 0,
           color: '#45B7D1',
-          members: [
-            {
-              id: '6',
-              name: 'Frank Miller',
-              salary: 5800,
-              walletAddress: '0xa1b2c3d4e5f6789012345678901234567',
-              teamId: '3'
-            }
-          ]
+          members: []
         },
         {
           id: '4',
           name: 'Sales',
-          budget: 0, // Will be calculated from employee salaries
+          budget: 0,
           color: '#96CEB4',
-          members: [
-            {
-              id: '7',
-              name: 'Grace Lee',
-              salary: 4500,
-              walletAddress: '0x123456789abcdef0123456789abcdef01',
-              teamId: '4'
-            },
-            {
-              id: '8',
-              name: 'Henry Clark',
-              salary: 5200,
-              walletAddress: '0xfedcba9876543210fedcba9876543210',
-              teamId: '4'
-            }
-          ]
+          members: []
         },
         {
           id: '5',
           name: 'Operations',
-          budget: 0, // Will be calculated from employee salaries
+          budget: 0,
           color: '#FECA57',
           members: []
         },
         {
           id: '6',
           name: 'Legal',
-          budget: 0, // Will be calculated from employee salaries
+          budget: 0,
           color: '#B8860B',
           members: []
         },
         {
           id: '7',
           name: 'HR',
-          budget: 0, // Will be calculated from employee salaries
+          budget: 0,
           color: '#DDA0DD',
           members: []
         }
@@ -543,6 +764,15 @@ export const addEmployee = (employeeData: AddEmployeeRequest): Promise<{ success
         resolve({
           success: false,
           error: 'Missing required fields'
+        });
+        return;
+      }
+
+      // Check if this is trying to add the existing employee
+      if (employeeData.walletAddress === '0x6Bf22C8B5a12bC8aEb8467846c91B4Efefa0edb7') {
+        resolve({
+          success: false,
+          error: 'Employee already exists in the system'
         });
         return;
       }
@@ -762,10 +992,15 @@ export default {
   deleteTeam,
   processPayrollPayments,
   
-  // Client Company Information
+  // Employee Company Information
   fetchClientCompanyInfo,
   fetchIndividualBalance,
   fetchCreditScore,
+  
+  // Merit System
+  grantEmployeeOfWeekMerit,
+  fetchEmployeeMerits,
+  checkMeritCooldown,
   
   // Dashboard & Portfolio
   fetchDashboardData,

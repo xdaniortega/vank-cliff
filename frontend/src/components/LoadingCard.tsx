@@ -18,7 +18,7 @@ export default function LoadingCard({
 }: LoadingCardProps) {
   return (
     <div 
-      className={className}
+      className={`main-block-gradient-light ${className}`}
       style={{
         backgroundColor: 'white',
         padding: spacing.xl,

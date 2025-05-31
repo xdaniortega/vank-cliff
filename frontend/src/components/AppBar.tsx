@@ -210,7 +210,7 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
       left: 0,
       right: 0,
       height: '64px',
-      backgroundColor: colors.primary,
+      background: `linear-gradient(to right, ${colors.primary} 0%, #ff9500 100%)`,
       display: 'flex',
       alignItems: 'center',
       padding: `0 ${spacing.lg}`,
@@ -293,7 +293,7 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
             ) : (
               <User size={14} color="white" strokeWidth={2} />
             )}
-            {userIsCompany ? 'Company' : 'Client'}
+            {userIsCompany ? 'Company' : 'Employee'}
           </div>
         )}
       </div>

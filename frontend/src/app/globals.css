@@ -22,6 +22,98 @@ html {
   scroll-behavior: smooth;
 }
 
+/* CSS Custom Properties for Gradient Opacity */
+:root {
+  /* Primary gradient opacity (purple #6F2DBD) */
+  --gradient-primary-standard: 0.2;
+  --gradient-primary-light: 0.08;
+  --gradient-primary-reverse: 0.10;
+  
+  /* Secondary gradient opacity (orange #ff9500) */
+  --gradient-secondary-standard: 0.14;
+  --gradient-secondary-light: 0.04;
+  --gradient-secondary-reverse: 0.06;
+  
+  /* Gradient colors */
+  --gradient-color-primary: 111, 45, 189;  /* #6F2DBD */
+  --gradient-color-secondary: 255, 149, 0; /* #ff9500 */
+}
+
+/* Diagonal gradient backgrounds for main page blocks */
+.main-block-gradient {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-block-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(var(--gradient-color-primary), var(--gradient-primary-standard)) 0%, 
+    rgba(var(--gradient-color-secondary), var(--gradient-secondary-standard)) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-block-gradient > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Alternative diagonal gradient - lighter version */
+.main-block-gradient-light {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-block-gradient-light::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, 
+    rgba(var(--gradient-color-primary), var(--gradient-primary-light)) 0%, 
+    rgba(var(--gradient-color-secondary), var(--gradient-secondary-light)) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-block-gradient-light > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Reverse diagonal gradient */
+.main-block-gradient-reverse {
+  position: relative;
+  overflow: hidden;
+}
+
+.main-block-gradient-reverse::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(-45deg, 
+    rgba(var(--gradient-color-primary), var(--gradient-primary-reverse)) 0%, 
+    rgba(var(--gradient-color-secondary), var(--gradient-secondary-reverse)) 100%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.main-block-gradient-reverse > * {
+  position: relative;
+  z-index: 1;
+}
+
 /* Spinner animation */
 @keyframes spin {
   0% { transform: rotate(0deg); }

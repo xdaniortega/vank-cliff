@@ -12,7 +12,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{
+    <div 
+      className="main-block-gradient"
+      style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -87,8 +89,6 @@ export default function LoginPage() {
             Connect Wallet
           </button>
         </div>
-
-       
       </div>
     </div>
   );

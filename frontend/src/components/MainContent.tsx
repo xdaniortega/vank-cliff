@@ -63,13 +63,16 @@ const PortfolioCard = ({ title, isLoading }: { title: string; isLoading: boolean
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
-    }}>
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '12px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 2px 8px ${colors.shadow}`
+      }}
+    >
       <h3 style={{
         fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.semibold,
@@ -107,13 +110,16 @@ const QuickActionsCard = ({ isLoading }: { isLoading: boolean }) => {
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
-    }}>
+    <div 
+      className="main-block-gradient-light"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '12px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 2px 8px ${colors.shadow}`
+      }}
+    >
       <h3 style={{
         fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.semibold,
@@ -166,13 +172,16 @@ const TransactionsCard = ({ isLoading }: { isLoading: boolean }) => {
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '12px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 2px 8px ${colors.shadow}`
-    }}>
+    <div 
+      className="main-block-gradient-reverse"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '12px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 2px 8px ${colors.shadow}`
+      }}
+    >
       <h3 style={{
         fontSize: typography.fontSize.lg,
         fontWeight: typography.fontWeight.semibold,
@@ -1123,13 +1132,16 @@ const TeamsEmployeesManagement = ({ loading }: { loading: boolean }) => {
 
   return (
     <>
-      <div style={{
-        backgroundColor: 'white',
-        padding: spacing.xl,
-        borderRadius: '12px',
-        border: `1px solid ${colors.border}`,
-        boxShadow: `0 2px 8px ${colors.shadow}`
-      }}>
+      <div 
+        className="main-block-gradient"
+        style={{
+          backgroundColor: 'white',
+          padding: spacing.xl,
+          borderRadius: '12px',
+          border: `1px solid ${colors.border}`,
+          boxShadow: `0 2px 8px ${colors.shadow}`
+        }}
+      >
         {/* Header */}
         <div style={{
           display: 'flex',
@@ -1496,15 +1508,18 @@ const MyCompanyInfo = ({ loading }: { loading: boolean }) => {
       gap: spacing.xl
     }}>
       {/* Company Overview Card */}
-      <div style={{
-        backgroundColor: 'white',
-        padding: spacing.xl,
-        borderRadius: '16px',
-        border: `1px solid ${colors.border}`,
-        boxShadow: `0 4px 12px ${colors.shadow}`,
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
+      <div 
+        className="main-block-gradient"
+        style={{
+          backgroundColor: 'white',
+          padding: spacing.xl,
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
+          boxShadow: `0 4px 12px ${colors.shadow}`,
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
         {/* Background gradient */}
         <div style={{
           position: 'absolute',
@@ -1669,13 +1684,16 @@ const MyCompanyInfo = ({ loading }: { loading: boolean }) => {
       </div>
 
       {/* Employment Details Card */}
-      <div style={{
-        backgroundColor: 'white',
-        padding: spacing.xl,
-        borderRadius: '16px',
-        border: `1px solid ${colors.border}`,
-        boxShadow: `0 4px 12px ${colors.shadow}`
-      }}>
+      <div 
+        className="main-block-gradient-light"
+        style={{
+          backgroundColor: 'white',
+          padding: spacing.xl,
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
+          boxShadow: `0 4px 12px ${colors.shadow}`
+        }}
+      >
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -1942,13 +1960,16 @@ export default function MainContent({ activeSection, isMobile }: MainContentProp
             <p>Preparing your {activeSection} data...</p>
           </LoadingCard>
         ) : (
-          <div style={{
-            backgroundColor: 'white',
-            padding: spacing.xl,
-            borderRadius: '12px',
-            border: `1px solid ${colors.border}`,
-            boxShadow: `0 2px 8px ${colors.shadow}`
-          }}>
+          <div 
+            className="main-block-gradient"
+            style={{
+              backgroundColor: 'white',
+              padding: spacing.xl,
+              borderRadius: '12px',
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 2px 8px ${colors.shadow}`
+            }}
+          >
             <h3 style={{
               fontSize: typography.fontSize.lg,
               fontWeight: typography.fontWeight.semibold,
@@ -2016,35 +2037,6 @@ export default function MainContent({ activeSection, isMobile }: MainContentProp
         
         {renderSectionContent()}
         
-        {/* Extra content to demonstrate scrolling - only show when not loading */}
-        {!loading && (
-          <div style={{ height: '50vh', marginTop: spacing.xl }}>
-            <div style={{
-              backgroundColor: 'white',
-              padding: spacing.xl,
-              borderRadius: '12px',
-              border: `1px solid ${colors.border}`,
-              boxShadow: `0 2px 8px ${colors.shadow}`
-            }}>
-              <h3 style={{
-                fontSize: typography.fontSize.lg,
-                fontWeight: typography.fontWeight.semibold,
-                color: colors.text.primary,
-                marginBottom: spacing.lg
-              }}>
-                Additional Content
-              </h3>
-              <p style={{
-                color: colors.text.secondary,
-                fontSize: typography.fontSize.base,
-                lineHeight: 1.6
-              }}>
-                This is additional content to demonstrate the scrollable nature of the main content area. 
-                The sidebar and app bar remain fixed while this content scrolls independently.
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </main>
   );

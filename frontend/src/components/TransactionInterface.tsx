@@ -65,7 +65,7 @@ const TransactionInterface = ({
 
   return (
     <div 
-      className={className}
+      className={`main-block-gradient-reverse ${className}`}
       style={{
         backgroundColor: 'white',
         borderRadius: '16px',

@@ -4,8 +4,7 @@ import { colors, typography, spacing } from '@/theme/colors';
 import { useState, useEffect } from 'react';
 import { DollarSign, HandCoins, CreditCard, TrendingUp, Coins, ArrowDownLeft } from 'lucide-react';
 import LoadingCard from './LoadingCard';
-import TransactionTracker from './TransactionTracker';
-import TransactionInterface from './TransactionInterface';
+import BlockscoutTransactionHistory from './BlockscoutTransactionHistory';
 import AmountDisplay from './shared/AmountDisplay';
 import { 
   fetchIndividualBalance,
@@ -13,7 +12,8 @@ import {
   fetchNetworkInfo,
   IndividualBalance,
   CreditScore,
-  NetworkInfo
+  NetworkInfo,
+  Merit
 } from '@/api/api_calls';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
 
@@ -22,19 +22,31 @@ interface IndividualDashboardProps {
 }
 
 // Credit Score Half-Arch Component
-const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number }) => {
+const CreditScoreGauge = ({ 
+  score, 
+  maxScore, 
+  extraMerits 
+}: { 
+  score: number; 
+  maxScore: number; 
+  extraMerits?: Merit[];
+}) => {
   const percentage = (score / maxScore) * 100;
   const angle = (percentage / 100) * 180; // Half circle is 180 degrees
   
-  // Determine color based on score
-  const getScoreColor = (score: number, maxScore: number) => {
-    const percentage = (score / maxScore) * 100;
-    if (percentage >= 75) return '#22c55e'; // Green
-    if (percentage >= 50) return '#eab308'; // Yellow
-    return '#ef4444'; // Red
-  };
+  // Calculate base score without merits for layered display
+  const meritBonus = extraMerits?.reduce((sum, merit) => sum + merit.meritValue, 0) || 0;
+  const baseScore = score - meritBonus;
+  const basePercentage = (baseScore / maxScore) * 100;
+  const baseAngle = (basePercentage / 100) * 180;
+  
+  // Calculate merit bonus angle
+  const meritPercentage = (meritBonus / maxScore) * 100;
+  const meritAngle = (meritPercentage / 100) * 180;
 
-  const scoreColor = getScoreColor(score, maxScore);
+  // Colors: Base score always green, extra merits always purple
+  const baseScoreColor = '#22c55e'; // Green for base credit score
+  const meritColor = '#9333ea'; // Purple for merits
 
   return (
     <div style={{
@@ -57,18 +69,33 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
           strokeWidth="8"
           strokeLinecap="round"
         />
-        {/* Score arc */}
+        {/* Base credit score arc (always green) */}
         <path
           d="M 20 90 A 80 80 0 0 1 180 90"
           fill="none"
-          stroke={scoreColor}
+          stroke={baseScoreColor}
           strokeWidth="8"
           strokeLinecap="round"
-          strokeDasharray={`${(angle / 180) * 251.3} 251.3`}
+          strokeDasharray={`${(baseAngle / 180) * 251.3} 251.3`}
           style={{
             transition: 'stroke-dasharray 1s ease-in-out'
           }}
         />
+        {/* Merit bonus arc (purple, on top of base score) */}
+        {meritBonus > 0 && (
+          <path
+            d="M 20 90 A 80 80 0 0 1 180 90"
+            fill="none"
+            stroke={meritColor}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${(meritAngle / 180) * 251.3} 251.3`}
+            strokeDashoffset={-((baseAngle / 180) * 251.3)}
+            style={{
+              transition: 'stroke-dasharray 1s ease-in-out, stroke-dashoffset 1s ease-in-out'
+            }}
+          />
+        )}
       </svg>
       
       {/* Score text */}
@@ -82,7 +109,7 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
         <div style={{
           fontSize: typography.fontSize['2xl'],
           fontWeight: typography.fontWeight.bold,
-          color: scoreColor,
+          color: meritBonus > 0 ? meritColor : baseScoreColor,
           lineHeight: 1
         }}>
           {score}
@@ -94,6 +121,16 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
         }}>
           / {maxScore}
         </div>
+        {meritBonus > 0 && (
+          <div style={{
+            fontSize: typography.fontSize.xs,
+            color: meritColor,
+            fontWeight: typography.fontWeight.medium,
+            marginTop: '2px'
+          }}>
+            +{meritBonus} extra merits
+          </div>
+        )}
       </div>
     </div>
   );
@@ -115,15 +152,18 @@ const UserBalanceCard = ({
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '16px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 4px 12px ${colors.shadow}`,
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
       {/* Background gradient accent */}
       <div style={{
         position: 'absolute',
@@ -217,6 +257,7 @@ const FinancialActionsCard = ({
   const [showNetworks, setShowNetworks] = useState(false);
   const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
   const [isFetchingNetworkInfo, setIsFetchingNetworkInfo] = useState(false);
+  const [meritsExpanded, setMeritsExpanded] = useState(false);
 
   // Get wallet info for network calls
   const { address: connectedAddress } = useWalletInfo();
@@ -293,15 +334,18 @@ const FinancialActionsCard = ({
   }
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '16px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 4px 12px ${colors.shadow}`,
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div 
+      className="main-block-gradient-light"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
       {/* Background pattern */}
       <div style={{
         position: 'absolute',
@@ -384,7 +428,7 @@ const FinancialActionsCard = ({
         
         {creditScore && (
           <>
-            <CreditScoreGauge score={creditScore.score} maxScore={creditScore.maxScore} />
+            <CreditScoreGauge score={creditScore.score} maxScore={creditScore.maxScore} extraMerits={creditScore.extraMerits} />
             <div style={{
               textAlign: 'center',
               marginTop: spacing.sm
@@ -397,6 +441,156 @@ const FinancialActionsCard = ({
                 {creditScore.category}
               </span>
             </div>
+            
+            {/* Extra Merits Display */}
+            {creditScore.extraMerits && creditScore.extraMerits.length > 0 && (
+              <div style={{
+                marginTop: spacing.md,
+                padding: spacing.md,
+                backgroundColor: '#f8fafc',
+                borderRadius: '8px',
+                border: '1px solid #e2e8f0'
+              }}>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: spacing.sm
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.xs
+                  }}>
+                    <div style={{
+                      width: '16px',
+                      height: '16px',
+                      backgroundColor: '#9333ea',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <TrendingUp size={10} color="white" strokeWidth={2.5} />
+                    </div>
+                    <span style={{
+                      fontSize: typography.fontSize.xs,
+                      fontWeight: typography.fontWeight.semibold,
+                      color: '#9333ea'
+                    }}>
+                      Extra Merits ({creditScore.extraMerits.length})
+                    </span>
+                  </div>
+                  
+                  {creditScore.extraMerits.length > 3 && (
+                    <button
+                      onClick={() => setMeritsExpanded(!meritsExpanded)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        fontSize: typography.fontSize.xs,
+                        color: '#9333ea',
+                        cursor: 'pointer',
+                        fontWeight: typography.fontWeight.medium,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        transition: 'background-color 0.2s ease'
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = '#f3f4f6';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      {meritsExpanded ? 'Show Less' : 'Show All'}
+                    </button>
+                  )}
+                </div>
+                
+                <div 
+                  className="merits-container"
+                  style={{
+                    maxHeight: meritsExpanded ? '200px' : 'auto',
+                    overflowY: meritsExpanded ? 'auto' : 'visible',
+                    paddingRight: meritsExpanded ? spacing.xs : '0'
+                  }}
+                >
+                  {(meritsExpanded ? creditScore.extraMerits : creditScore.extraMerits.slice(0, 3)).map((merit, index) => (
+                    <div key={merit.id} style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: spacing.xs,
+                      backgroundColor: index === 0 ? '#f3f4f6' : 'transparent',
+                      borderRadius: '4px',
+                      marginBottom: spacing.xs
+                    }}>
+                      <div>
+                        <div style={{
+                          fontSize: typography.fontSize.xs,
+                          fontWeight: typography.fontWeight.medium,
+                          color: colors.text.primary,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: spacing.xs
+                        }}>
+                          {merit.title}
+                          {merit.description.includes('from Blockscout') && (
+                            <span style={{
+                              fontSize: typography.fontSize.xs,
+                              backgroundColor: '#9333ea',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              fontWeight: typography.fontWeight.bold
+                            }}>
+                              VERIFIED
+                            </span>
+                          )}
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.xs,
+                          color: colors.text.secondary,
+                          marginTop: '1px'
+                        }}>
+                          {merit.awardedDate.toLocaleDateString()}
+                          {merit.description.includes('from Blockscout') && (
+                            <span style={{
+                              marginLeft: spacing.xs,
+                              fontStyle: 'italic'
+                            }}>
+                              via Blockscout Merits
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: typography.fontSize.xs,
+                        fontWeight: typography.fontWeight.bold,
+                        color: '#9333ea'
+                      }}>
+                        +{merit.meritValue}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                <div style={{
+                  textAlign: 'center',
+                  marginTop: spacing.sm,
+                  padding: `${spacing.xs} 0`,
+                  borderTop: '1px solid #e2e8f0'
+                }}>
+                  <span style={{
+                    fontSize: typography.fontSize.xs,
+                    color: colors.text.secondary
+                  }}>
+                    Higher yields & better loan rates available
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
@@ -629,7 +823,7 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
       
       Promise.all([
         fetchIndividualBalance(connectedAddress || undefined, chainId || '1'),
-        fetchCreditScore()
+        fetchCreditScore(connectedAddress || undefined, chainId || '1')
       ]).then(([balanceData, creditData]) => {
         setBalance(balanceData);
         setCreditScore(creditData);
@@ -641,12 +835,10 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
     }
   }, [isLoading, connectedAddress, chainId]);
 
-  const companyAddress = '0x742E8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf12';
-  const employeeAddresses = [
-    '0x123e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf34',
-    '0x456e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf56',
-    '0x789e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf78'
-  ];
+  // Real employee data - only one employee
+  const employeeAddress = '0x6Bf22C8B5a12bC8aEb8467846c91B4Efefa0edb7';
+  // Company address would be the connected wallet for company users
+  const companyAddress = connectedAddress;
 
   return (
     <div>
@@ -670,16 +862,15 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
       {/* Second Row - Transaction Management */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gridTemplateColumns: '1fr',
         gap: spacing.xl
       }}>
-        <TransactionInterface
-          companyAddress={companyAddress}
-          employeeAddresses={employeeAddresses}
-        />
-        <TransactionTracker
-          companyAddress={companyAddress}
-          employeeAddresses={employeeAddresses}
+        <BlockscoutTransactionHistory
+          companyAddress={companyAddress ?? undefined}
+          employeeAddresses={[employeeAddress]}
+          userRole="individual"
+          userAddress={connectedAddress ?? undefined}
+          title="My Transaction History"
         />
       </div>
     </div>
@@ -693,6 +884,25 @@ if (typeof document !== 'undefined') {
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
+    }
+    
+    /* Custom scrollbar for merits container */
+    .merits-container::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    .merits-container::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 3px;
+    }
+    
+    .merits-container::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+    
+    .merits-container::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
     }
   `;
   if (!document.head.querySelector('style[data-animation="spin"]')) {

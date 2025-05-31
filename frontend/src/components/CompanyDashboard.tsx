@@ -2,13 +2,16 @@
 
 import { colors, typography, spacing } from '@/theme/colors';
 import { useState, useEffect } from 'react';
-import { DollarSign, Zap, TrendingUp, X, User, Wallet } from 'lucide-react';
+import { DollarSign, Zap, TrendingUp, X, User, Wallet, Award, Star, Clock } from 'lucide-react';
 import LoadingCard from './LoadingCard';
+import BlockscoutTransactionHistory from './BlockscoutTransactionHistory';
 import AmountDisplay from './shared/AmountDisplay';
 import { 
   fetchTreasuryBalance, 
   fetchTeamsAndEmployees,
   processPayrollPayments,
+  grantEmployeeOfWeekMerit,
+  checkMeritCooldown,
   Employee,
   Team,
   TeamsAndEmployeesData,
@@ -464,15 +467,18 @@ const CurrencyAmountCard = ({
   const totalTeamCosts = teamsData?.totalTeamCosts || 0;
 
   return (
-    <div style={{
-      backgroundColor: 'white',
-      padding: spacing.xl,
-      borderRadius: '16px',
-      border: `1px solid ${colors.border}`,
-      boxShadow: `0 4px 12px ${colors.shadow}`,
-      position: 'relative',
-      overflow: 'hidden'
-    }}>
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        position: 'relative',
+        overflow: 'hidden'
+      }}
+    >
       {/* Background gradient accent */}
       <div style={{
         position: 'absolute',
@@ -716,15 +722,18 @@ const ActionsCard = ({
 
   return (
     <>
-      <div style={{
-        backgroundColor: 'white',
-        padding: spacing.xl,
-        borderRadius: '16px',
-        border: `1px solid ${colors.border}`,
-        boxShadow: `0 4px 12px ${colors.shadow}`,
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
+      <div 
+        className="main-block-gradient"
+        style={{
+          backgroundColor: 'white',
+          padding: spacing.xl,
+          borderRadius: '16px',
+          border: `1px solid ${colors.border}`,
+          boxShadow: `0 4px 12px ${colors.shadow}`,
+          position: 'relative',
+          overflow: 'hidden'
+        }}
+      >
         {/* Background pattern */}
         <div style={{
           position: 'absolute',
@@ -864,6 +873,392 @@ const ActionsCard = ({
   );
 };
 
+const EmployeeMeritCard = ({ 
+  isLoading, 
+  teamsData,
+  companyAddress,
+  chainId 
+}: { 
+  isLoading: boolean;
+  teamsData?: TeamsAndEmployeesData;
+  companyAddress?: string;
+  chainId?: string;
+}) => {
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [isGrantingMerit, setIsGrantingMerit] = useState(false);
+  const [canGrant, setCanGrant] = useState(true);
+  const [timeRemaining, setTimeRemaining] = useState<number | null>(null);
+  const [showEmployeeDropdown, setShowEmployeeDropdown] = useState(false);
+
+  // Check merit cooldown on mount and when company address changes
+  useEffect(() => {
+    if (companyAddress) {
+      checkMeritCooldown(companyAddress).then(result => {
+        setCanGrant(result.canGrant);
+        setTimeRemaining(result.timeRemaining || null);
+      });
+    }
+  }, [companyAddress]);
+
+  // Update cooldown timer every second
+  useEffect(() => {
+    if (timeRemaining && timeRemaining > 0) {
+      const timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev && prev > 1000) {
+            return prev - 1000;
+          } else {
+            setCanGrant(true);
+            return null;
+          }
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [timeRemaining]);
+
+  const allEmployees = teamsData?.teams.flatMap(team => team.members) || [];
+
+  const handleGrantMerit = async () => {
+    if (!selectedEmployee || !companyAddress || !canGrant) return;
+
+    setIsGrantingMerit(true);
+    
+    try {
+      const result = await grantEmployeeOfWeekMerit(
+        selectedEmployee.walletAddress, 
+        companyAddress, 
+        chainId || '1'
+      );
+      
+      if (result.success) {
+        alert(`🏆 Merit granted successfully via Blockscout Merits API!\n\n` +
+              `Employee: ${selectedEmployee.name}\n` +
+              `Award: Employee of the Week\n` +
+              `Merit Points: 1 (distributed via Blockscout)\n` +
+              `Credit Score Bonus: +1 point\n\n` +
+              `This merit has been distributed through the official Blockscout Merits system and will appear in the employee's credit score immediately.`);
+        
+        setSelectedEmployee(null);
+        setCanGrant(false);
+        setTimeRemaining(5000); // 5 seconds cooldown for testing
+      } else {
+        alert(`❌ Failed to grant merit via Blockscout:\n\n${result.error}\n\nNote: This cooldown applies to ALL employees in your company.`);
+      }
+    } catch (error) {
+      console.error('Error granting merit:', error);
+      alert('❌ Unexpected error occurred while granting merit. Please try again.');
+    } finally {
+      setIsGrantingMerit(false);
+      setShowEmployeeDropdown(false);
+    }
+  };
+
+  const formatTimeRemaining = (milliseconds: number) => {
+    const seconds = Math.ceil(milliseconds / 1000);
+    return `${seconds}s`;
+  };
+
+  if (isLoading) {
+    return (
+      <LoadingCard title="Loading Merit System..." showSpinner={true}>
+        <p>Preparing employee recognition tools...</p>
+      </LoadingCard>
+    );
+  }
+
+  return (
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.xl,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        position: 'relative',
+        overflow: 'hidden',
+        zIndex: showEmployeeDropdown ? 10 : 1
+      }}
+    >
+      {/* Background gradient */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '120px',
+        height: '120px',
+        background: `linear-gradient(135deg, #9333ea15, #7c3aed10)`,
+        borderRadius: '0 16px 0 100%'
+      }} />
+      
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'space-between',
+        marginBottom: spacing.lg,
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <div>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.sm,
+            marginBottom: spacing.xs
+          }}>
+            <div style={{
+              width: '32px',
+              height: '32px',
+              backgroundColor: '#9333ea',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <Award size={18} color="white" strokeWidth={2.5} />
+            </div>
+            <h3 style={{
+              fontSize: typography.fontSize.base,
+              fontWeight: typography.fontWeight.semibold,
+              color: colors.text.primary,
+              margin: 0
+            }}>
+              Employee Merit System
+            </h3>
+          </div>
+          <p style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            margin: 0
+          }}>
+            Grant Employee of the Week via Blockscout Merits API
+          </p>
+        </div>
+
+        {!canGrant && timeRemaining && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.xs,
+            backgroundColor: '#fef3c7',
+            padding: `${spacing.xs} ${spacing.sm}`,
+            borderRadius: '12px',
+            border: '1px solid #fcd34d'
+          }}>
+            <Clock size={12} color="#d97706" strokeWidth={2} />
+            <span style={{
+              fontSize: typography.fontSize.xs,
+              color: '#d97706',
+              fontWeight: typography.fontWeight.medium
+            }}>
+              {formatTimeRemaining(timeRemaining)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Employee Selection */}
+      <div style={{
+        position: 'relative',
+        zIndex: showEmployeeDropdown ? 10000 : 1,
+        marginBottom: spacing.lg,
+        overflow: showEmployeeDropdown ? 'visible' : 'hidden'
+      }}>
+        <label style={{
+          fontSize: typography.fontSize.sm,
+          fontWeight: typography.fontWeight.medium,
+          color: colors.text.primary,
+          marginBottom: spacing.sm,
+          display: 'block'
+        }}>
+          Select Employee
+        </label>
+        
+        <div style={{ 
+          position: 'relative',
+          overflow: showEmployeeDropdown ? 'visible' : 'hidden'
+        }}>
+          <button
+            onClick={() => setShowEmployeeDropdown(!showEmployeeDropdown)}
+            disabled={!canGrant || isGrantingMerit}
+            style={{
+              width: '100%',
+              padding: `${spacing.md} ${spacing.lg}`,
+              backgroundColor: (!canGrant || isGrantingMerit) ? colors.light : 'white',
+              border: `1px solid ${colors.border}`,
+              borderRadius: '8px',
+              fontSize: typography.fontSize.sm,
+              color: selectedEmployee ? colors.text.primary : colors.text.secondary,
+              cursor: (!canGrant || isGrantingMerit) ? 'not-allowed' : 'pointer',
+              textAlign: 'left',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}
+          >
+            <span>
+              {selectedEmployee ? selectedEmployee.name : 'Choose an employee...'}
+            </span>
+            <span style={{ transform: showEmployeeDropdown ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+              ▼
+            </span>
+          </button>
+
+          {showEmployeeDropdown && canGrant && !isGrantingMerit && (
+            <>
+              {/* Backdrop to handle clicks outside */}
+              <div
+                style={{
+                  position: 'fixed',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  zIndex: 50000,
+                  backgroundColor: 'transparent'
+                }}
+                onClick={() => setShowEmployeeDropdown(false)}
+              />
+              
+              {/* Dropdown */}
+              <div style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                right: 0,
+                backgroundColor: 'white',
+                border: `1px solid ${colors.border}`,
+                borderRadius: '8px',
+                boxShadow: `0 12px 32px rgba(0, 0, 0, 0.25)`,
+                zIndex: 50001,
+                maxHeight: '200px',
+                overflowY: 'auto',
+                marginTop: '4px'
+              }}>
+                {allEmployees.map((employee) => (
+                  <button
+                    key={employee.id}
+                    onClick={() => {
+                      setSelectedEmployee(employee);
+                      setShowEmployeeDropdown(false);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: `${spacing.sm} ${spacing.lg}`,
+                      backgroundColor: 'transparent',
+                      border: 'none',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      fontSize: typography.fontSize.sm,
+                      color: colors.text.primary,
+                      borderBottom: `1px solid ${colors.border}`,
+                      transition: 'background-color 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = colors.light;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <div style={{ fontWeight: typography.fontWeight.medium }}>
+                      {employee.name}
+                    </div>
+                    <div style={{
+                      fontSize: typography.fontSize.xs,
+                      color: colors.text.secondary,
+                      marginTop: '2px'
+                    }}>
+                      {employee.walletAddress.substring(0, 8)}...{employee.walletAddress.substring(employee.walletAddress.length - 6)}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Grant Merit Button */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1
+      }}>
+        <button 
+          onClick={handleGrantMerit}
+          disabled={!selectedEmployee || !canGrant || isGrantingMerit}
+          style={{
+            width: '100%',
+            backgroundColor: (!selectedEmployee || !canGrant || isGrantingMerit) ? colors.text.secondary : '#9333ea',
+            color: 'white',
+            border: 'none',
+            padding: `${spacing.md} ${spacing.lg}`,
+            borderRadius: '12px',
+            fontSize: typography.fontSize.base,
+            fontWeight: typography.fontWeight.semibold,
+            cursor: (!selectedEmployee || !canGrant || isGrantingMerit) ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: spacing.sm,
+            transition: 'all 0.2s ease',
+            boxShadow: (!selectedEmployee || !canGrant || isGrantingMerit) ? 'none' : '0 2px 8px rgba(147, 51, 234, 0.3)'
+          }}
+        >
+          {isGrantingMerit ? (
+            <>
+              <div style={{
+                width: '18px',
+                height: '18px',
+                border: `2px solid rgba(255, 255, 255, 0.3)`,
+                borderTop: `2px solid white`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              Creating Blockchain Transaction...
+            </>
+          ) : !canGrant ? (
+            <>
+              <Clock size={18} strokeWidth={2} />
+              Merit Cooldown Active (All Employees)
+            </>
+          ) : (
+            <>
+              <Star size={18} strokeWidth={2} />
+              Grant Employee of the Week
+            </>
+          )}
+        </button>
+
+        {selectedEmployee && canGrant && !isGrantingMerit && (
+          <p style={{
+            fontSize: typography.fontSize.xs,
+            color: colors.text.secondary,
+            margin: `${spacing.sm} 0 0 0`,
+            textAlign: 'center'
+          }}>
+            Awards +1 merit point to {selectedEmployee.name} via Blockscout Merits API
+          </p>
+        )}
+
+        {!canGrant && (
+          <p style={{
+            fontSize: typography.fontSize.xs,
+            color: '#d97706',
+            margin: `${spacing.sm} 0 0 0`,
+            textAlign: 'center',
+            fontWeight: typography.fontWeight.medium
+          }}>
+            Merit cooldown active for ALL employees (5s in testing mode)
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   const [treasuryBalance, setTreasuryBalance] = useState<number>(0);
   const [teamsData, setTeamsData] = useState<TeamsAndEmployeesData | undefined>();
@@ -904,6 +1299,7 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
 
   return (
     <div>
+      {/* All Cards in One Row */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
@@ -923,6 +1319,19 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
           isLoading={isLoading || isDataLoading}
           onPaymentComplete={handlePaymentComplete}
           currentBalance={treasuryBalance}
+        />
+        <EmployeeMeritCard 
+          isLoading={isLoading || isDataLoading}
+          teamsData={teamsData}
+          companyAddress={walletAddress ?? undefined}
+          chainId={chainId ?? undefined}
+        />
+        <BlockscoutTransactionHistory
+          companyAddress={walletAddress ?? undefined}
+          employeeAddresses={teamsData?.teams.flatMap(team => team.members.map(member => member.walletAddress))}
+          title="Transaction History"
+          userRole="company"
+          showAllTransactions={true}
         />
       </div>
     </div>
