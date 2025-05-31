@@ -6,11 +6,14 @@ import { DollarSign, HandCoins, CreditCard, TrendingUp, Coins, ArrowDownLeft } f
 import LoadingCard from './LoadingCard';
 import TransactionTracker from './TransactionTracker';
 import TransactionInterface from './TransactionInterface';
+import AmountDisplay from './shared/AmountDisplay';
 import { 
   fetchIndividualBalance,
   fetchCreditScore,
+  fetchNetworkInfo,
   IndividualBalance,
-  CreditScore
+  CreditScore,
+  NetworkInfo
 } from '@/api/api_calls';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
 
@@ -197,54 +200,7 @@ const UserBalanceCard = ({
       </div>
 
       {/* Amount Display */}
-      <div style={{
-        position: 'relative',
-        zIndex: 1
-      }}>
-        <p style={{
-          fontSize: typography.fontSize['4xl'],
-          fontWeight: typography.fontWeight.bold,
-          color: colors.text.primary,
-          margin: '0 0 8px 0',
-          lineHeight: 1,
-          letterSpacing: '-0.02em'
-        }}>
-          ${balance?.amount.toFixed(2) || '0.00'}
-        </p>
-        
-        {/* Show native token amount if available */}
-        {balance?.nativeAmount && balance?.nativeSymbol && (
-          <p style={{
-            fontSize: typography.fontSize.lg,
-            fontWeight: typography.fontWeight.medium,
-            color: colors.text.secondary,
-            margin: '0 0 8px 0',
-            lineHeight: 1
-          }}>
-            {balance.nativeAmount.toFixed(6)} {balance.nativeSymbol}
-          </p>
-        )}
-        
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: spacing.xs
-        }}>
-          <div style={{
-            width: '6px',
-            height: '6px',
-            backgroundColor: '#22c55e',
-            borderRadius: '50%'
-          }}></div>
-          <p style={{
-            fontSize: typography.fontSize.sm,
-            color: colors.text.secondary,
-            margin: 0
-          }}>
-            {balance?.nativeAmount ? 'Live from Blockscout' : 'Updated just now'}
-          </p>
-        </div>
-      </div>
+      <AmountDisplay balance={balance} showMarginBottom={false} />
     </div>
   );
 };
@@ -258,14 +214,65 @@ const FinancialActionsCard = ({
 }) => {
   const [isRequestingMoney, setIsRequestingMoney] = useState(false);
   const [isRequestingLoan, setIsRequestingLoan] = useState(false);
+  const [showNetworks, setShowNetworks] = useState(false);
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
+  const [isFetchingNetworkInfo, setIsFetchingNetworkInfo] = useState(false);
+
+  // Get wallet info for network calls
+  const { address: connectedAddress } = useWalletInfo();
+
+  // Define available networks
+  const networks = [
+    { name: 'Ethereum', color: '#627EEA', shortName: 'ETH' },
+    { name: 'Polygon', color: '#8247E5', shortName: 'MATIC' },
+    { name: 'Arbitrum', color: '#28A0F0', shortName: 'ARB' },
+    { name: 'Optimism', color: '#FF0420', shortName: 'OP' },
+    { name: 'Base', color: '#0052FF', shortName: 'BASE' }
+  ];
 
   const handleRequestMoney = () => {
-    setIsRequestingMoney(true);
-    // Simulate API call
-    setTimeout(() => {
-      setIsRequestingMoney(false);
-      alert('Money request sent successfully!');
-    }, 2000);
+    if (!showNetworks) {
+      setShowNetworks(true);
+      setNetworkInfo(null); // Clear previous network info
+    }
+  };
+
+  const handleNetworkSelect = async (networkName: string) => {
+    setIsFetchingNetworkInfo(true);
+    
+    try {
+      // Fetch network information
+      const networkData = await fetchNetworkInfo(networkName, connectedAddress ?? undefined);
+      setNetworkInfo(networkData);
+      
+      // Callback with selected network and data
+      onNetworkSelected(networkName, networkData);
+      
+      // Show network info for a moment before proceeding
+      setTimeout(() => {
+        setIsRequestingMoney(true);
+        setShowNetworks(false);
+        setIsFetchingNetworkInfo(false);
+        
+        // Simulate API call
+        setTimeout(() => {
+          setIsRequestingMoney(false);
+          alert(`Money request sent on ${networkName} network!\nBalance: ${networkData.balance.toFixed(4)} ${networkData.balanceSymbol}\nBlock: ${networkData.blockNumber || 'N/A'}`);
+        }, 2000);
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error fetching network info:', error);
+      setIsFetchingNetworkInfo(false);
+      alert(`Error fetching ${networkName} network information`);
+    }
+  };
+
+  const onNetworkSelected = (networkName: string, networkData: NetworkInfo) => {
+    console.log('Selected network:', networkName);
+    console.log('Network data:', networkData);
+    // This is the callback that receives the network name and data
+    // You can replace this with your actual callback logic
   };
 
   const handleRequestLoan = () => {
@@ -404,23 +411,24 @@ const FinancialActionsCard = ({
       }}>
         <button 
           onClick={handleRequestMoney}
-          disabled={isRequestingMoney}
+          disabled={isRequestingMoney || isFetchingNetworkInfo}
           style={{
             width: '100%',
-            backgroundColor: isRequestingMoney ? colors.text.secondary : colors.primary,
+            backgroundColor: showNetworks ? colors.accent : (isRequestingMoney ? colors.text.secondary : colors.primary),
             color: 'white',
             border: 'none',
-            padding: `${spacing.md} ${spacing.lg}`,
+            padding: showNetworks ? spacing.sm : `${spacing.md} ${spacing.lg}`,
             borderRadius: '12px',
             fontSize: typography.fontSize.base,
             fontWeight: typography.fontWeight.semibold,
-            cursor: isRequestingMoney ? 'not-allowed' : 'pointer',
+            cursor: (isRequestingMoney || isFetchingNetworkInfo) ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: spacing.sm,
-            transition: 'all 0.2s ease',
-            boxShadow: isRequestingMoney ? 'none' : `0 2px 8px ${colors.primary}30`
+            transition: 'all 0.3s ease',
+            boxShadow: (isRequestingMoney || isFetchingNetworkInfo) ? 'none' : `0 2px 8px ${showNetworks ? colors.accent : colors.primary}30`,
+            minHeight: '48px'
           }}
         >
           {isRequestingMoney ? (
@@ -435,6 +443,125 @@ const FinancialActionsCard = ({
               }}></div>
               Processing...
             </>
+          ) : isFetchingNetworkInfo ? (
+            <>
+              <div style={{
+                width: '18px',
+                height: '18px',
+                border: `2px solid rgba(255, 255, 255, 0.3)`,
+                borderTop: `2px solid white`,
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite'
+              }}></div>
+              Fetching network data...
+            </>
+          ) : networkInfo ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100%',
+              gap: spacing.xs,
+              textAlign: 'center'
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.bold
+              }}>
+                {networkInfo.networkName} Network
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                opacity: 0.9
+              }}>
+                Balance: {networkInfo.balance.toFixed(4)} {networkInfo.balanceSymbol}
+              </div>
+              <div style={{
+                fontSize: typography.fontSize.xs,
+                opacity: 0.9
+              }}>
+                Block: {networkInfo.blockNumber || 'N/A'}
+              </div>
+            </div>
+          ) : showNetworks ? (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              width: '100%',
+              gap: spacing.sm
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.medium,
+                marginBottom: spacing.xs,
+                textAlign: 'center'
+              }}>
+                Select Network
+              </div>
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-around',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: spacing.sm
+              }}>
+                {networks.map((network) => (
+                  <div
+                    key={network.name}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleNetworkSelect(network.name);
+                    }}
+                    style={{
+                      width: '50px',
+                      height: '50px',
+                      borderRadius: '50%',
+                      backgroundColor: network.color,
+                      border: '2px solid white',
+                      color: 'white',
+                      fontSize: typography.fontSize.xs,
+                      fontWeight: typography.fontWeight.bold,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                      userSelect: 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'scale(1.1)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'scale(1)';
+                      e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+                    }}
+                  >
+                    {network.shortName}
+                  </div>
+                ))}
+              </div>
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowNetworks(false);
+                }}
+                style={{
+                  alignSelf: 'center',
+                  background: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  color: 'white',
+                  padding: `${spacing.xs} ${spacing.sm}`,
+                  borderRadius: '6px',
+                  fontSize: typography.fontSize.xs,
+                  cursor: 'pointer',
+                  marginTop: spacing.xs,
+                  userSelect: 'none'
+                }}
+              >
+                Cancel
+              </div>
+            </div>
           ) : (
             <>
               <HandCoins size={18} strokeWidth={2} />

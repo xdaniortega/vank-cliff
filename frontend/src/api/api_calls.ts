@@ -4,7 +4,8 @@
 import { 
   fetchAccountBalance, 
   convertNativeTokenToUsd,
-  getChainConfig 
+  getChainConfig,
+  fetchLatestBlockNumber
 } from './blockscout-api';
 
 // Types and Interfaces
@@ -130,6 +131,15 @@ export interface DeleteTeamRequest {
   teamId: string;
 }
 
+export interface NetworkInfo {
+  networkName: string;
+  chainId: string;
+  balance: number;
+  balanceSymbol: string;
+  blockNumber: number | null;
+  lastUpdated: Date;
+}
+
 // =============================================================================
 // TREASURY & COMPANY FINANCES
 // =============================================================================
@@ -194,6 +204,55 @@ export const fetchTreasuryBalance = async (
 // =============================================================================
 // INDIVIDUAL USER FINANCES
 // =============================================================================
+
+/**
+ * Fetches network information including balance and block number
+ * @param networkName - The network name (e.g., 'Ethereum', 'Polygon')
+ * @param address - The wallet address (optional)
+ * @returns Promise<NetworkInfo>
+ */
+export const fetchNetworkInfo = async (
+  networkName: string,
+  address?: string
+): Promise<NetworkInfo> => {
+  // Map network names to chain IDs
+  const networkToChainId: Record<string, string> = {
+    'Ethereum': '1',
+    'Polygon': '137',
+    'Arbitrum': '42161',
+    'Optimism': '10',
+    'Base': '8453' // Base mainnet
+  };
+
+  const chainId = networkToChainId[networkName] || '1';
+
+  try {
+    // Fetch balance and block number in parallel
+    const [balanceData, blockNumber] = await Promise.all([
+      address ? fetchAccountBalance(address, chainId) : null,
+      fetchLatestBlockNumber(chainId)
+    ]);
+
+    return {
+      networkName,
+      chainId,
+      balance: balanceData?.balance || 0,
+      balanceSymbol: balanceData?.symbol || 'ETH',
+      blockNumber,
+      lastUpdated: new Date()
+    };
+  } catch (error) {
+    console.error(`Error fetching network info for ${networkName}:`, error);
+    return {
+      networkName,
+      chainId,
+      balance: 0,
+      balanceSymbol: 'ETH',
+      blockNumber: null,
+      lastUpdated: new Date()
+    };
+  }
+};
 
 /**
  * Fetches individual user balance using Blockscout API

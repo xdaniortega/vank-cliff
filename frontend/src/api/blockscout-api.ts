@@ -269,17 +269,57 @@ export const convertUsdToNativeToken = (
 };
 
 /**
- * Convert native token amount to USD using exchange rate
+ * Convert native token amount to USD (simplified conversion)
  */
 export const convertNativeTokenToUsd = (
   tokenAmount: number,
   exchangeRate?: string
 ): number => {
-  if (!exchangeRate) {
-    // Fallback rates for demonstration
-    return tokenAmount * 2000; // Assuming ~$2000 per ETH
+  // Simplified conversion - in production you'd use real exchange rates
+  const mockExchangeRate = parseFloat(exchangeRate || '2000'); // Mock ETH price
+  return tokenAmount * mockExchangeRate;
+};
+
+/**
+ * Fetch the latest block number from Blockscout
+ */
+export const fetchLatestBlockNumber = async (chainId: string): Promise<number | null> => {
+  const config = getChainConfig(chainId);
+  if (!config) {
+    console.warn(`🔗 Chain ID ${chainId} is not supported by Blockscout API`);
+    return null;
   }
-  
-  const rate = parseFloat(exchangeRate);
-  return tokenAmount * rate;
+
+  try {
+    console.log(`🔍 Fetching latest block number from Blockscout for chain ${chainId}...`);
+    
+    const response = await fetch(
+      `${config.baseUrl}/api/v2/blocks?type=block`,
+      {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    if (!response.ok) {
+      console.error(`❌ Blockscout API error: ${response.status} ${response.statusText}`);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    if (data.items && data.items.length > 0) {
+      const latestBlock = data.items[0].height;
+      console.log(`✅ Latest block number: ${latestBlock}`);
+      return latestBlock;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('❌ Error fetching latest block number from Blockscout:', error);
+    return null;
+  }
 }; 
