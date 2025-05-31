@@ -81,8 +81,9 @@ jobs:
         env:
           # Add your environment variables here, referencing GitHub secrets
           NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID: ${{ secrets.NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID }}
-          # Add any other environment variables you need
-          # EXAMPLE_VAR: ${{ secrets.EXAMPLE_VAR }}
+          # Set GitHub Actions environment variable for basePath configuration
+          GITHUB_ACTIONS: true
+          GITHUB_REPOSITORY: ${{ github.repository }}
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -98,4 +99,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v4 
