@@ -206,7 +206,7 @@ export const fetchTreasuryBalance = async (
     const balanceData = await fetchAccountBalance(address, chainId);
     
     if (balanceData) {
-      const usdAmount = convertNativeTokenToUsd(balanceData.balance);
+      const usdAmount = await convertNativeTokenToUsd(balanceData.balance, balanceData.symbol);
       
       return {
         amount: usdAmount,
@@ -316,7 +316,7 @@ export const fetchIndividualBalance = async (
     const balanceData = await fetchAccountBalance(address, chainId);
     
     if (balanceData) {
-      const usdAmount = convertNativeTokenToUsd(balanceData.balance);
+      const usdAmount = await convertNativeTokenToUsd(balanceData.balance, balanceData.symbol);
       
       return {
         amount: usdAmount,
@@ -676,7 +676,7 @@ export const fetchTeamsAndEmployees = (): Promise<TeamsAndEmployeesData> => {
             {
               id: '1',
               name: 'Mok Perdices Ortega',
-              salary: 7500,
+              salary: 1000,
               walletAddress: '0x6Bf22C8B5a12bC8aEb8467846c91B4Efefa0edb7',
               teamId: '1'
             }

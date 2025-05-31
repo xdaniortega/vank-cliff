@@ -556,7 +556,7 @@ const CurrencyAmountCard = ({
       </div>
 
       {/* Amount Display */}
-      <AmountDisplay balance={balance} />
+      <AmountDisplay balance={balance} isLoading={isAmountLoading} />
 
       {/* Teams Budget Section */}
       {!isAmountLoading && teamBudgets.length > 0 && (

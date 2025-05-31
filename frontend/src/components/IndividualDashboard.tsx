@@ -240,7 +240,7 @@ const UserBalanceCard = ({
       </div>
 
       {/* Amount Display */}
-      <AmountDisplay balance={balance} showMarginBottom={false} />
+      <AmountDisplay balance={balance} showMarginBottom={false} isLoading={isLoading} />
     </div>
   );
 };

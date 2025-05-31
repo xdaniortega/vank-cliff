@@ -3,6 +3,8 @@
  * Handles all interactions with Blockscout's REST API for real blockchain data
  */
 
+import { convertTokenToUsdWithFallback } from './price-api';
+
 export interface BlockscoutConfig {
   baseUrl: string;
   chainId: string;
@@ -269,15 +271,35 @@ export const convertUsdToNativeToken = (
 };
 
 /**
- * Convert native token amount to USD (simplified conversion)
+ * Convert native token amount to USD using real-time price data
  */
-export const convertNativeTokenToUsd = (
+export const convertNativeTokenToUsd = async (
   tokenAmount: number,
-  exchangeRate?: string
-): number => {
-  // Simplified conversion - in production you'd use real exchange rates
-  const mockExchangeRate = parseFloat(exchangeRate || '2000'); // Mock ETH price
-  return tokenAmount * mockExchangeRate;
+  tokenSymbol: string
+): Promise<number> => {
+  try {
+    // Use the new price API to get real-time conversion
+    const usdAmount = await convertTokenToUsdWithFallback(tokenAmount, tokenSymbol);
+    return usdAmount;
+  } catch (error) {
+    console.error('❌ Error converting native token to USD:', error);
+    
+    // Fallback to hardcoded rates as last resort
+    const fallbackRates: Record<string, number> = {
+      'ETH': 2000,
+      'MATIC': 0.8,
+      'FLOW': 0.7,
+      'BTC': 35000,
+      'USDC': 1,
+      'USDT': 1
+    };
+    
+    const fallbackRate = fallbackRates[tokenSymbol.toUpperCase()] || 1000;
+    const usdAmount = tokenAmount * fallbackRate;
+    
+    console.warn(`⚠️ Using emergency fallback rate for ${tokenSymbol}: $${fallbackRate}`);
+    return usdAmount;
+  }
 };
 
 /**
