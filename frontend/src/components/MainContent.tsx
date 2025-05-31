@@ -1527,17 +1527,6 @@ const MyCompanyInfo = ({ loading }: { loading: boolean }) => {
             gap: spacing.lg,
             marginBottom: spacing.xl
           }}>
-            {companyInfo.companyLogo && (
-              <img
-                src={companyInfo.companyLogo}
-                alt={`${companyInfo.companyName} logo`}
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  objectFit: 'contain'
-                }}
-              />
-            )}
             <div>
               <h2 style={{
                 fontSize: typography.fontSize['2xl'],

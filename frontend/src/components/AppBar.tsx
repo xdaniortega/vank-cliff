@@ -5,7 +5,6 @@ import { User, Building2 } from 'lucide-react';
 import { useDynamicContext } from '@dynamic-labs/sdk-react-core';
 import { APP_NAME } from '@/constants/app';
 import { isUserCompany } from '@/utils/userHelpers';
-import Image from 'next/image';
 
 interface AppBarProps {
   onMenuToggle: () => void;
@@ -79,20 +78,6 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
         alignItems: 'center',
         gap: spacing.md
       }}>
-        {/* VankCliff Logo */}
-        <Image 
-          src="/VankCliff_Logo.svg"
-          alt="VankCliff Logo"
-          width={40}
-          height={40}
-          style={{
-            height: '40px',
-            width: 'auto',
-            filter: 'brightness(0) invert(1)', // Makes the white logo visible on dark background
-            objectFit: 'contain'
-          }}
-        />
-        
         <h1 style={{
           fontFamily: typography.fontFamily,
           fontSize: typography.fontSize.xl,

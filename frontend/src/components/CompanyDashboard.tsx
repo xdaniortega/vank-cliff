@@ -10,7 +10,8 @@ import {
   processPayrollPayments,
   Employee,
   Team,
-  TeamsAndEmployeesData
+  TeamsAndEmployeesData,
+  TreasuryBalance
 } from '@/api/api_calls';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
 
@@ -427,7 +428,8 @@ const CurrencyAmountCard = ({
   onAmountUpdate,
   teamsData,
   walletAddress,
-  chainId
+  chainId,
+  balance
 }: { 
   isLoading: boolean;
   currentAmount: number;
@@ -435,43 +437,18 @@ const CurrencyAmountCard = ({
   teamsData?: TeamsAndEmployeesData;
   walletAddress?: string;
   chainId?: string;
+  balance: TreasuryBalance | null;
 }) => {
   const [displayAmount, setDisplayAmount] = useState<string>('Loading...');
   const [isAmountLoading, setIsAmountLoading] = useState(true);
-  const [nativeBalance, setNativeBalance] = useState<{ amount: number; symbol: string } | null>(null);
 
   useEffect(() => {
-    if (currentAmount !== 0) {
-      setDisplayAmount(`$${currentAmount.toFixed(2)}`);
+    if (balance) {
+      setDisplayAmount(`$${balance.amount.toFixed(2)}`);
       setIsAmountLoading(false);
-    } else {
-      // Initial load - fetch treasury balance using Blockscout with connected wallet
-      console.log('🔍 Fetching treasury balance from Blockscout...');
-      console.log('📍 Wallet Address:', walletAddress);
-      console.log('🔗 Chain ID:', chainId);
-      
-      fetchTreasuryBalance(walletAddress, chainId || '1')
-        .then((balanceData) => {
-          console.log('💰 Balance Data from Blockscout:', balanceData);
-          setDisplayAmount(`$${balanceData.amount.toFixed(2)}`);
-          setIsAmountLoading(false);
-          onAmountUpdate(balanceData.amount);
-          
-          // Store native balance if available
-          if (balanceData.nativeAmount && balanceData.nativeSymbol) {
-            setNativeBalance({
-              amount: balanceData.nativeAmount,
-              symbol: balanceData.nativeSymbol
-            });
-          }
-        })
-        .catch((error) => {
-          console.error('❌ Error fetching treasury balance:', error);
-          setDisplayAmount('Error loading balance');
-          setIsAmountLoading(false);
-        });
+      onAmountUpdate(balance.amount);
     }
-  }, [currentAmount, onAmountUpdate, walletAddress, chainId]);
+  }, [balance, onAmountUpdate]);
 
   if (isLoading) {
     return (
@@ -576,84 +553,49 @@ const CurrencyAmountCard = ({
         zIndex: 1,
         marginBottom: spacing.xl
       }}>
-        {isAmountLoading ? (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: spacing.md,
-            minHeight: '80px'
+        <p style={{
+          fontSize: typography.fontSize['4xl'],
+          fontWeight: typography.fontWeight.bold,
+          color: colors.text.primary,
+          margin: '0 0 8px 0',
+          lineHeight: 1,
+          letterSpacing: '-0.02em'
+        }}>
+          ${balance?.amount.toFixed(2) || '0.00'}
+        </p>
+        
+        {/* Show native token amount if available */}
+        {balance?.nativeAmount && balance?.nativeSymbol && (
+          <p style={{
+            fontSize: typography.fontSize.lg,
+            fontWeight: typography.fontWeight.medium,
+            color: colors.text.secondary,
+            margin: '0 0 8px 0',
+            lineHeight: 1
           }}>
-            <div style={{
-              width: '24px',
-              height: '24px',
-              border: `3px solid ${colors.light}`,
-              borderTop: `3px solid ${colors.primary}`,
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }}></div>
-            <div>
-              <div style={{
-                width: '120px',
-                height: '32px',
-                backgroundColor: colors.light,
-                borderRadius: '8px',
-                marginBottom: spacing.xs
-              }}></div>
-              <div style={{
-                width: '80px',
-                height: '16px',
-                backgroundColor: colors.border,
-                borderRadius: '4px'
-              }}></div>
-            </div>
-          </div>
-        ) : (
-          <div>
-            <p style={{
-              fontSize: typography.fontSize['4xl'],
-              fontWeight: typography.fontWeight.bold,
-              color: colors.text.primary,
-              margin: '0 0 8px 0',
-              lineHeight: 1,
-              letterSpacing: '-0.02em'
-            }}>
-              {displayAmount}
-            </p>
-            
-            {/* Show native token amount if available */}
-            {nativeBalance && (
-              <p style={{
-                fontSize: typography.fontSize.lg,
-                fontWeight: typography.fontWeight.medium,
-                color: colors.text.secondary,
-                margin: '0 0 8px 0',
-                lineHeight: 1
-              }}>
-                {nativeBalance.amount.toFixed(6)} {nativeBalance.symbol}
-              </p>
-            )}
-            
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.xs
-            }}>
-              <div style={{
-                width: '6px',
-                height: '6px',
-                backgroundColor: '#22c55e',
-                borderRadius: '50%'
-              }}></div>
-              <p style={{
-                fontSize: typography.fontSize.sm,
-                color: colors.text.secondary,
-                margin: 0
-              }}>
-                {nativeBalance ? 'Live from Blockscout' : 'Updated just now'}
-              </p>
-            </div>
-          </div>
+            {balance.nativeAmount.toFixed(6)} {balance.nativeSymbol}
+          </p>
         )}
+        
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: spacing.xs
+        }}>
+          <div style={{
+            width: '6px',
+            height: '6px',
+            backgroundColor: '#22c55e',
+            borderRadius: '50%'
+          }}></div>
+          <p style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            margin: 0
+          }}>
+            {balance?.nativeAmount ? 'Live from Blockscout' : 'Updated just now'}
+          </p>
+        </div>
       </div>
 
       {/* Teams Budget Section */}
@@ -972,22 +914,31 @@ const ActionsCard = ({
 export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   const [treasuryBalance, setTreasuryBalance] = useState<number>(0);
   const [teamsData, setTeamsData] = useState<TeamsAndEmployeesData | undefined>();
+  const [balance, setBalance] = useState<TreasuryBalance | null>(null);
+  const [isDataLoading, setIsDataLoading] = useState(false);
 
   // Get wallet info from Dynamic login for Blockscout API calls
   const { address: walletAddress, chainId } = useWalletInfo();
 
-  // Fetch teams and employees data
+  // Fetch teams and employees data + balance
   useEffect(() => {
     if (!isLoading) {
-      fetchTeamsAndEmployees()
-        .then((data) => {
-          setTeamsData(data);
-        })
-        .catch((error) => {
-          console.error('Error fetching teams and employees:', error);
-        });
+      setIsDataLoading(true);
+      
+      Promise.all([
+        fetchTeamsAndEmployees(),
+        fetchTreasuryBalance(walletAddress ?? undefined, chainId || '1')
+      ]).then(([teamsData, balanceData]) => {
+        setTeamsData(teamsData);
+        setBalance(balanceData);
+        setTreasuryBalance(balanceData.amount);
+        setIsDataLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching company dashboard data:', error);
+        setIsDataLoading(false);
+      });
     }
-  }, [isLoading]);
+  }, [isLoading, walletAddress, chainId]);
 
   const handleAmountUpdate = (newAmount: number) => {
     setTreasuryBalance(newAmount);
@@ -1007,15 +958,16 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
         marginBottom: spacing.xl
       }}>
         <CurrencyAmountCard 
-          isLoading={isLoading} 
+          isLoading={isLoading || isDataLoading} 
           currentAmount={treasuryBalance}
           onAmountUpdate={handleAmountUpdate}
           teamsData={teamsData}
           walletAddress={walletAddress ?? undefined}
           chainId={chainId ?? undefined}
+          balance={balance}
         />
         <ActionsCard 
-          isLoading={isLoading}
+          isLoading={isLoading || isDataLoading}
           onPaymentComplete={handlePaymentComplete}
           currentBalance={treasuryBalance}
         />

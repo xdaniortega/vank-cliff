@@ -175,7 +175,7 @@ export const fetchTreasuryBalance = async (
       // Fallback to mock data if Blockscout call fails
       console.warn('Failed to fetch balance from Blockscout, using mock data');
       return {
-        amount: 30000.00,
+        amount: 0.00,
         currency: 'USD',
         lastUpdated: new Date()
       };
@@ -184,7 +184,7 @@ export const fetchTreasuryBalance = async (
     console.error('Error fetching treasury balance:', error);
     // Fallback to mock data
     return {
-      amount: 30000.00,
+      amount: 0.00,
       currency: 'USD',
       lastUpdated: new Date()
     };
