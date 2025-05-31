@@ -3,9 +3,23 @@ pragma solidity ^0.8.28;
 
 /**
  * @title CompanyLiquidityModels
- * @notice Contains all events and data structures for the CompanyLiquidityManager contract
+ * @notice Contains all events, errors, and data structures for the CompanyLiquidityManager contract
  */
 contract CompanyLiquidityModels {
+  // Custom Errors
+  error InvalidPositionIndex();
+  error PositionNotActive();
+  error InvalidBeneficiariesAmounts();
+  error InsufficientAvailableAmount();
+  error VestingNotActive();
+  error VestingNotEnded();
+  error AlreadyUnlocked();
+  error AlreadyClaimed();
+  error NotABeneficiary();
+  error NoRewardsToClaim();
+  error CannotReduceBelowAvailableAmount();
+  error TokenTransferFailed();
+
   // Events
   event LiquidityPositionAdded(
     address indexed company,

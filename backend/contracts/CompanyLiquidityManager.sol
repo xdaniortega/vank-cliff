@@ -47,14 +47,12 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 amount1
   ) external {
     // Transfer tokens from company to this contract
-    require(
-      IERC20(MockLiquidityPool(pool).token0()).transferFrom(company, address(this), amount0),
-      'Token0 transfer failed'
-    );
-    require(
-      IERC20(MockLiquidityPool(pool).token1()).transferFrom(company, address(this), amount1),
-      'Token1 transfer failed'
-    );
+    if (!IERC20(MockLiquidityPool(pool).token0()).transferFrom(company, address(this), amount0)) {
+      revert TokenTransferFailed();
+    }
+    if (!IERC20(MockLiquidityPool(pool).token1()).transferFrom(company, address(this), amount1)) {
+      revert TokenTransferFailed();
+    }
 
     // Approve tokens to the pool
     IERC20(MockLiquidityPool(pool).token0()).approve(pool, amount0);
@@ -104,20 +102,24 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 startTime,
     uint256 endTime
   ) external {
-    require(positionIndex < companyPositionCount[company], 'Invalid position index');
-    require(companyPositions[company][positionIndex].isActive, 'Position not active');
-    require(
-      beneficiaries.length == amounts.length && beneficiaries.length > 0,
-      'Invalid beneficiaries/amounts'
-    );
+    if (positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
+    if (!companyPositions[company][positionIndex].isActive) {
+      revert PositionNotActive();
+    }
+    if (beneficiaries.length != amounts.length || beneficiaries.length == 0) {
+      revert InvalidBeneficiariesAmounts();
+    }
+
     uint256 total;
     for (uint256 i = 0; i < amounts.length; i++) {
       total += amounts[i];
     }
-    require(
-      companyPositions[company][positionIndex].availableAmount >= total,
-      'Insufficient available amount'
-    );
+
+    if (companyPositions[company][positionIndex].availableAmount < total) {
+      revert InsufficientAvailableAmount();
+    }
     companyPositions[company][positionIndex].availableAmount -= total;
 
     // Create vesting info
@@ -152,9 +154,15 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     address company
   ) public {
     VestingInfo storage vesting = vestings[vestingId];
-    require(vesting.isActive, 'Vesting not active');
-    require(block.timestamp >= vesting.endTime, 'Vesting not ended');
-    require(vestingUnlockTimes[vestingId][beneficiary] == 0, 'Already unlocked');
+    if (!vesting.isActive) {
+      revert VestingNotActive();
+    }
+    if (block.timestamp < vesting.endTime) {
+      revert VestingNotEnded();
+    }
+    if (vestingUnlockTimes[vestingId][beneficiary] != 0) {
+      revert AlreadyUnlocked();
+    }
     uint256 positionIndex = vesting.positionIndex;
 
     // Snapshot totalRewards at unlock
@@ -170,14 +178,22 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
    */
   function claimVestedAmount(uint256 vestingId, address company) external {
     VestingInfo storage vesting = vestings[vestingId];
-    require(vesting.isActive, 'Vesting not active');
-    require(!vestingHasClaimed[vestingId][msg.sender], 'Already claimed');
+    if (!vesting.isActive) {
+      revert VestingNotActive();
+    }
+    if (vestingHasClaimed[vestingId][msg.sender]) {
+      revert AlreadyClaimed();
+    }
 
     address beneficiary = msg.sender;
-    require(vestingAmounts[vestingId][beneficiary] > 0, 'Not a beneficiary');
+    if (vestingAmounts[vestingId][beneficiary] == 0) {
+      revert NotABeneficiary();
+    }
 
     if (vestingUnlockTimes[vestingId][beneficiary] == 0) {
-      require(block.timestamp >= vesting.endTime, 'Vesting not ended');
+      if (block.timestamp < vesting.endTime) {
+        revert VestingNotEnded();
+      }
       unlockVestingForBeneficiary(vestingId, beneficiary, company);
     }
 
@@ -206,13 +222,18 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
    * @param positionIndex Index of the position
    */
   function claimRewards(address company, uint256 positionIndex) external {
-    require(positionIndex < companyPositionCount[company], 'Invalid position index');
+    if (positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
     LiquidityPosition storage position = companyPositions[company][positionIndex];
-    require(position.isActive, 'Position not active');
+    if (!position.isActive) {
+      revert PositionNotActive();
+    }
 
-    // Claim rewards from the pool
     uint256 rewards = MockLiquidityPool(position.pool).claimRewards(position.positionId);
-    require(rewards > 0, 'No rewards to claim');
+    if (rewards == 0) {
+      revert NoRewardsToClaim();
+    }
 
     // Update position
     position.totalRewards += rewards;
@@ -284,7 +305,9 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
       bool isActive
     )
   {
-    require(positionIndex < companyPositionCount[company], 'Invalid position index');
+    if (positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
     LiquidityPosition memory position = companyPositions[company][positionIndex];
     return (
       position.pool,
@@ -308,20 +331,22 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 positionIndex,
     uint256 newAmount
   ) external {
-    require(positionIndex < companyPositionCount[company], 'Invalid position index');
-    require(companyPositions[company][positionIndex].isActive, 'Position not active');
+    if (positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
+    if (!companyPositions[company][positionIndex].isActive) {
+      revert PositionNotActive();
+    }
 
     LiquidityPosition storage position = companyPositions[company][positionIndex];
     uint256 oldAmount = position.totalAmount;
 
-    // Calculate the difference and update available amount
     if (newAmount > oldAmount) {
       position.availableAmount += (newAmount - oldAmount);
     } else {
-      require(
-        position.availableAmount >= (oldAmount - newAmount),
-        'Cannot reduce below available amount'
-      );
+      if (position.availableAmount < (oldAmount - newAmount)) {
+        revert CannotReduceBelowAvailableAmount();
+      }
       position.availableAmount -= (oldAmount - newAmount);
     }
 
@@ -334,7 +359,9 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
    * @param company Address of the company
    */
   function cancelVesting(uint256 vestingId, address company) external onlyOwner {
-    require(vestings[vestingId].isActive, 'Vesting not active');
+    if (!vestings[vestingId].isActive) {
+      revert VestingNotActive();
+    }
 
     VestingInfo storage vesting = vestings[vestingId];
     uint256 positionIndex = vesting.positionIndex;
@@ -362,14 +389,12 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 amount1
   ) internal returns (uint256 positionIndex) {
     // Transfer tokens from company to this contract
-    require(
-      IERC20(MockLiquidityPool(pool).token0()).transferFrom(company, address(this), amount0),
-      'Token0 transfer failed'
-    );
-    require(
-      IERC20(MockLiquidityPool(pool).token1()).transferFrom(company, address(this), amount1),
-      'Token1 transfer failed'
-    );
+    if (!IERC20(MockLiquidityPool(pool).token0()).transferFrom(company, address(this), amount0)) {
+      revert TokenTransferFailed();
+    }
+    if (!IERC20(MockLiquidityPool(pool).token1()).transferFrom(company, address(this), amount1)) {
+      revert TokenTransferFailed();
+    }
 
     // Approve tokens to the pool
     IERC20(MockLiquidityPool(pool).token0()).approve(pool, amount0);
@@ -419,12 +444,17 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 startTime,
     uint256 endTime
   ) internal {
-    require(positionIndex < companyPositionCount[company], 'Invalid position index');
-    require(companyPositions[company][positionIndex].isActive, 'Position not active');
-    require(
-      companyPositions[company][positionIndex].availableAmount >= amount,
-      'Insufficient available amount'
-    );
+    if (positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
+    if (!companyPositions[company][positionIndex].isActive) {
+      revert PositionNotActive();
+    }
+    if (
+      companyPositions[company][positionIndex].availableAmount < amount
+    ) {
+      revert InsufficientAvailableAmount();
+    }
 
     // Update available amount
     companyPositions[company][positionIndex].availableAmount -= amount;
