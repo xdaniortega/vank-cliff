@@ -217,6 +217,22 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
       boxShadow: `0 2px 8px ${colors.shadow}`,
       zIndex: 1000
     }}>
+      {/* Logo - Always leftmost */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        marginRight: spacing.md
+      }}>
+        <img 
+          src="/VankCliff_Logo.svg" 
+          alt="VankCliff Logo"
+          style={{
+            height: '40px',
+            width: 'auto'
+          }}
+        />
+      </div>
+
       {/* Hamburger Menu Button - Only visible on mobile */}
       {isMobile && (
         <button

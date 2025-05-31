@@ -84,6 +84,7 @@ jobs:
           # Set GitHub Actions environment variable for basePath configuration
           GITHUB_ACTIONS: true
           GITHUB_REPOSITORY: ${{ github.repository }}
+          NODE_ENV: production
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

@@ -1,21 +1,12 @@
-/** @type {import('next').NextConfig} */
-
-// Get the repository name from the environment or use a default
-const isGithubActions = process.env.GITHUB_ACTIONS || false
-const repo = process.env.GITHUB_REPOSITORY?.replace(/.*?\//, '') || 'vank-cliff'
-const assetPrefix = isGithubActions ? `/${repo}/` : ''
-const basePath = isGithubActions ? `/${repo}` : ''
-
+const isProd = process.env.NODE_ENV === 'production';
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export',
-  trailingSlash: true,
   images: {
-    unoptimized: true
+    unoptimized: true, // Disable default image optimization
   },
-  // Configure for GitHub Pages deployment
-  basePath: basePath,
-  assetPrefix: assetPrefix,
-}
+  assetPrefix: isProd ? '/vank-cliff/' : '',
+  basePath: isProd ? '/vank-cliff' : '',
+  output: 'export'
+};
 
-module.exports = nextConfig 
+export default nextConfig;
