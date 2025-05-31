@@ -4,6 +4,29 @@ import type { Metadata } from 'next'
 import DynamicProvider from '@/providers/DynamicProvider'
 import BlockscoutProvider from '@/providers/BlockscoutProvider'
 import { APP_TITLE, APP_DESCRIPTION, APP_KEYWORDS, APP_AUTHORS, APP_VIEWPORT } from '@/constants/app'
+// --- Wagmi imports ---
+import { WagmiProvider, createConfig, http } from 'wagmi'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import Web3Providers from '@/providers/Web3Providers'
+
+// Flow EVM chain config (chainId 747)
+const flowEvmChain = {
+  id: 747,
+  name: 'Flow EVM',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: ['https://mainnet.evm.nodes.onflow.org'] }, // Cambia esto por el RPC de Flow EVM si tienes uno
+  },
+}
+
+const wagmiConfig = createConfig({
+  chains: [flowEvmChain],
+  transports: {
+    [flowEvmChain.id]: http(),
+  },
+})
+
+const queryClient = new QueryClient()
 
 export const metadata: Metadata = {
   title: APP_TITLE,
@@ -31,11 +54,13 @@ export default function RootLayout({
         <link rel="icon" href="/VankCliff_Logo.svg" type="image/svg+xml" />
       </head>
       <body style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
-        <DynamicProvider>
-          <BlockscoutProvider>
-            {children}
-          </BlockscoutProvider>
-        </DynamicProvider>
+        <Web3Providers>
+          <DynamicProvider>
+            <BlockscoutProvider>
+              {children}
+            </BlockscoutProvider>
+          </DynamicProvider>
+        </Web3Providers>
       </body>
     </html>
   )

@@ -1,70 +1,19 @@
 import { useCallback } from 'react';
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
-import { CompanyLiquidityManager } from '../typechain-types';
+import { useWriteContract, useWaitForTransactionReceipt, useAccount, useReadContract } from 'wagmi';
+import { CHAIN_IDS, getContractAddress } from '../contracts/addresses';
+import CompanyLiquidityManagerABI from '../contracts/CompanyLiquidityManager.json';
 
 export const usePayrollContract = () => {
-  const { address: companyAddress } = useAccount();
-  const { writeContractAsync } = useWriteContract();
-  const { waitForTransactionReceiptAsync } = useWaitForTransactionReceipt();
-
-  const addLiquidity = useCallback(async (
-    poolAddress: `0x${string}`,
-    amount0: bigint,
-    amount1: bigint
-  ) => {
-    if (!companyAddress) throw new Error('Wallet not connected');
-    
-    const contractAddress = process.env.NEXT_PUBLIC_COMPANY_LIQUIDITY_MANAGER_ADDRESS as `0x${string}`;
-    if (!contractAddress) throw new Error('Contract address not configured');
-
-    const tx = await writeContractAsync({
-      address: contractAddress,
-      abi: CompanyLiquidityManager.abi,
-      functionName: 'addLiquidityPosition',
-      args: [
-        companyAddress,
-        poolAddress,
-        amount0,
-        amount1
-      ]
-    });
-
-    return waitForTransactionReceiptAsync({ hash: tx });
-  }, [companyAddress, writeContractAsync, waitForTransactionReceiptAsync]);
-
-  const createPayroll = useCallback(async (
-    payrollId: bigint,
-    positionIndex: bigint,
-    beneficiaries: `0x${string}`[],
-    amounts: bigint[],
-    startTime: bigint,
-    endTime: bigint
-  ) => {
-    if (!companyAddress) throw new Error('Wallet not connected');
-    
-    const contractAddress = process.env.NEXT_PUBLIC_COMPANY_LIQUIDITY_MANAGER_ADDRESS as `0x${string}`;
-    if (!contractAddress) throw new Error('Contract address not configured');
-
-    const tx = await writeContractAsync({
-      address: contractAddress,
-      abi: CompanyLiquidityManager.abi,
-      functionName: 'createPayrollMulti',
-      args: [
-        payrollId,
-        companyAddress,
-        positionIndex,
-        beneficiaries,
-        amounts,
-        startTime,
-        endTime
-      ]
-    });
-
-    return waitForTransactionReceiptAsync({ hash: tx });
-  }, [companyAddress, writeContractAsync, waitForTransactionReceiptAsync]);
-
-  return {
-    addLiquidity,
-    createPayroll
-  };
+  const { writeContractAsync, isPending } = useWriteContract();
+  const addLiquidity = useCallback(async (companyAddr: `0x${string}`, poolAddr: `0x${string}`, amountA: bigint, amountB: bigint) => {
+    const contractAddr = getContractAddress(CHAIN_IDS.FLOW, "companyLiquidityManager");
+    const receipt = await writeContractAsync({ abi: CompanyLiquidityManagerABI.abi, address: contractAddr, functionName: "addLiquidity", args: [companyAddr, poolAddr, amountA, amountB] });
+    return receipt;
+  }, [writeContractAsync]);
+  const createPayroll = useCallback(async (payrollId: bigint, positionIndex: bigint, beneficiaries: Array<`0x${string}`>, amounts: bigint[], startTime: bigint, endTime: bigint) => {
+    const contractAddr = getContractAddress(CHAIN_IDS.FLOW, "companyLiquidityManager");
+    const receipt = await writeContractAsync({ abi: CompanyLiquidityManagerABI.abi, address: contractAddr, functionName: "createPayroll", args: [payrollId, positionIndex, beneficiaries, amounts, startTime, endTime] });
+    return receipt;
+  }, [writeContractAsync]);
+  return { isPending, addLiquidity, createPayroll };
 }; 

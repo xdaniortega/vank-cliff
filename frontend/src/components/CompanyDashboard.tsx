@@ -18,6 +18,7 @@ import {
   TreasuryBalance
 } from '@/api/api_calls';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
+import CreatePayrollPopup from './CreatePayrollPopup';
 
 interface CompanyDashboardProps {
   isLoading: boolean;
@@ -695,21 +696,23 @@ const CurrencyAmountCard = ({
 const ActionsCard = ({ 
   isLoading, 
   onPaymentComplete,
-  currentBalance 
+  currentBalance,
+  teams
 }: { 
   isLoading: boolean;
   onPaymentComplete: (amount: number) => void;
   currentBalance: number;
+  teams: Team[];
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
-  const [showEmployeesPopup, setShowEmployeesPopup] = useState(false);
+  const [showCreatePayrollPopup, setShowCreatePayrollPopup] = useState(false);
 
-  const handlePaySalaries = async () => {
-    setShowEmployeesPopup(true);
+  const handleCreatePayment = () => {
+    setShowCreatePayrollPopup(true);
   };
 
-  const handlePaymentComplete = (totalPaid: number) => {
-    onPaymentComplete(totalPaid);
+  const handlePayrollCreated = () => {
+    onPaymentComplete(0); // Actualizar el balance después de crear el payroll
   };
 
   if (isLoading) {
@@ -747,57 +750,34 @@ const ActionsCard = ({
         
         {/* Header */}
         <div style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          marginBottom: spacing.xl,
           position: 'relative',
-          zIndex: 1
+          zIndex: 1,
+          marginBottom: spacing.xl
         }}>
-          <div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: spacing.sm,
-              marginBottom: spacing.xs
-            }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                backgroundColor: colors.secondary,
-                borderRadius: '8px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <Zap size={18} color="white" strokeWidth={2.5} />
-              </div>
-              <h3 style={{
-                fontSize: typography.fontSize.base,
-                fontWeight: typography.fontWeight.semibold,
-                color: colors.text.primary,
-                margin: 0
-              }}>
-                Quick Actions
-              </h3>
-            </div>
-            <p style={{
-              fontSize: typography.fontSize.sm,
-              color: colors.text.secondary,
-              margin: 0
-            }}>
-              Manage company operations
-            </p>
-          </div>
+          <h2 style={{
+            fontSize: typography.fontSize.xl,
+            fontWeight: typography.fontWeight.bold,
+            color: colors.text.primary,
+            margin: '0 0 8px 0'
+          }}>
+            Company Actions
+          </h2>
+          <p style={{
+            fontSize: typography.fontSize.sm,
+            color: colors.text.secondary,
+            margin: 0
+          }}>
+            Manage payroll and employee rewards
+          </p>
         </div>
 
-        {/* Action Button */}
+        {/* Actions */}
         <div style={{
           position: 'relative',
           zIndex: 1
         }}>
           <button 
-            onClick={handlePaySalaries}
+            onClick={handleCreatePayment}
             disabled={isProcessing}
             style={{
               width: '100%',
@@ -844,7 +824,7 @@ const ActionsCard = ({
             ) : (
               <>
                 <DollarSign size={18} strokeWidth={2} />
-                Pay Salaries
+                Create Payment
               </>
             )}
           </button>
@@ -856,17 +836,18 @@ const ActionsCard = ({
               margin: `${spacing.md} 0 0 0`,
               textAlign: 'center'
             }}>
-              Process monthly salary payments to all employees
+              Create a new payment for an employee
             </p>
           )}
         </div>
       </div>
 
-      {/* Employees Popup */}
-      <EmployeesPopup
-        isOpen={showEmployeesPopup}
-        onClose={() => setShowEmployeesPopup(false)}
-        onPaymentComplete={handlePaymentComplete}
+      {/* Create Payroll Popup */}
+      <CreatePayrollPopup
+        isOpen={showCreatePayrollPopup}
+        onClose={() => setShowCreatePayrollPopup(false)}
+        onPayrollCreated={handlePayrollCreated}
+        teams={teams}
         currentBalance={currentBalance}
       />
     </>
@@ -1319,6 +1300,7 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
           isLoading={isLoading || isDataLoading}
           onPaymentComplete={handlePaymentComplete}
           currentBalance={treasuryBalance}
+          teams={teamsData?.teams || []}
         />
         <EmployeeMeritCard 
           isLoading={isLoading || isDataLoading}
