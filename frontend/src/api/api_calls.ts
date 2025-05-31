@@ -1,6 +1,12 @@
 // Centralized API calls for the application
 // All fake API calls are organized here for easy replacement with real implementations
 
+import { 
+  fetchAccountBalance, 
+  convertNativeTokenToUsd,
+  getChainConfig 
+} from './blockscout-api';
+
 // Types and Interfaces
 export interface Employee {
   id: string;
@@ -56,6 +62,8 @@ export interface ClientCompanyInfo {
 export interface IndividualBalance {
   amount: number;
   currency: string;
+  nativeAmount?: number;
+  nativeSymbol?: string;
   lastUpdated: Date;
 }
 
@@ -69,6 +77,8 @@ export interface CreditScore {
 export interface TreasuryBalance {
   amount: number;
   currency: string;
+  nativeAmount?: number;
+  nativeSymbol?: string;
   lastUpdated: Date;
 }
 
@@ -125,18 +135,146 @@ export interface DeleteTeamRequest {
 // =============================================================================
 
 /**
- * Fetches the current treasury balance for the company
+ * Fetches the current treasury balance for the company using Blockscout API
+ * @param address - The company wallet address (optional, falls back to mock data)
+ * @param chainId - The blockchain chain ID (optional, defaults to '1')
  * @returns Promise<TreasuryBalance>
  */
-export const fetchTreasuryBalance = (): Promise<TreasuryBalance> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        amount: 30000.00, // Updated amount as per user's change
+export const fetchTreasuryBalance = async (
+  address?: string, 
+  chainId: string = '1'
+): Promise<TreasuryBalance> => {
+  // If no address provided, return mock data
+  if (!address) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          amount: 30000.00,
+          currency: 'USD',
+          lastUpdated: new Date()
+        });
+      }, 2000);
+    });
+  }
+
+  try {
+    // Fetch real balance from Blockscout
+    const balanceData = await fetchAccountBalance(address, chainId);
+    
+    if (balanceData) {
+      const usdAmount = convertNativeTokenToUsd(balanceData.balance);
+      
+      return {
+        amount: usdAmount,
+        currency: 'USD',
+        nativeAmount: balanceData.balance,
+        nativeSymbol: balanceData.symbol,
+        lastUpdated: new Date()
+      };
+    } else {
+      // Fallback to mock data if Blockscout call fails
+      console.warn('Failed to fetch balance from Blockscout, using mock data');
+      return {
+        amount: 30000.00,
         currency: 'USD',
         lastUpdated: new Date()
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching treasury balance:', error);
+    // Fallback to mock data
+    return {
+      amount: 30000.00,
+      currency: 'USD',
+      lastUpdated: new Date()
+    };
+  }
+};
+
+// =============================================================================
+// INDIVIDUAL USER FINANCES
+// =============================================================================
+
+/**
+ * Fetches individual user balance using Blockscout API
+ * @param address - The user's wallet address (optional, falls back to mock data)
+ * @param chainId - The blockchain chain ID (optional, defaults to '1')
+ * @returns Promise<IndividualBalance>
+ */
+export const fetchIndividualBalance = async (
+  address?: string, 
+  chainId: string = '1'
+): Promise<IndividualBalance> => {
+  // If no address provided, return mock data
+  if (!address) {
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        resolve({
+          amount: 8450.75,
+          currency: 'USD',
+          lastUpdated: new Date()
+        });
+      }, 1500);
+    });
+  }
+
+  try {
+    // Fetch real balance from Blockscout
+    const balanceData = await fetchAccountBalance(address, chainId);
+    
+    if (balanceData) {
+      const usdAmount = convertNativeTokenToUsd(balanceData.balance);
+      
+      return {
+        amount: usdAmount,
+        currency: 'USD',
+        nativeAmount: balanceData.balance,
+        nativeSymbol: balanceData.symbol,
+        lastUpdated: new Date()
+      };
+    } else {
+      // Fallback to mock data if Blockscout call fails
+      console.warn('Failed to fetch balance from Blockscout, using mock data');
+      return {
+        amount: 8450.75,
+        currency: 'USD',
+        lastUpdated: new Date()
+      };
+    }
+  } catch (error) {
+    console.error('Error fetching individual balance:', error);
+    // Fallback to mock data
+    return {
+      amount: 8450.75,
+      currency: 'USD',
+      lastUpdated: new Date()
+    };
+  }
+};
+
+/**
+ * Fetches individual user credit score
+ * @returns Promise<CreditScore>
+ */
+export const fetchCreditScore = (): Promise<CreditScore> => {
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      const score = 720; // Mock credit score
+      let category = '';
+      
+      if (score >= 750) category = 'Excellent';
+      else if (score >= 700) category = 'Good';
+      else if (score >= 650) category = 'Fair';
+      else if (score >= 600) category = 'Poor';
+      else category = 'Very Poor';
+
+      resolve({
+        score,
+        maxScore: 800,
+        category,
+        lastUpdated: new Date()
       });
-    }, 2000); // 2-second delay
+    }, 1200); // 1.2-second delay
   });
 };
 
@@ -180,48 +318,6 @@ export const fetchClientCompanyInfo = (): Promise<ClientCompanyInfo> => {
         }
       });
     }, 1800); // 1.8-second delay
-  });
-};
-
-/**
- * Fetches individual user balance
- * @returns Promise<IndividualBalance>
- */
-export const fetchIndividualBalance = (): Promise<IndividualBalance> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        amount: 8450.75,
-        currency: 'USD',
-        lastUpdated: new Date()
-      });
-    }, 1500); // 1.5-second delay
-  });
-};
-
-/**
- * Fetches individual user credit score
- * @returns Promise<CreditScore>
- */
-export const fetchCreditScore = (): Promise<CreditScore> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const score = 720; // Mock credit score
-      let category = '';
-      
-      if (score >= 750) category = 'Excellent';
-      else if (score >= 700) category = 'Good';
-      else if (score >= 650) category = 'Fair';
-      else if (score >= 600) category = 'Poor';
-      else category = 'Very Poor';
-
-      resolve({
-        score,
-        maxScore: 800,
-        category,
-        lastUpdated: new Date()
-      });
-    }, 1200); // 1.2-second delay
   });
 };
 

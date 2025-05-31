@@ -12,6 +12,7 @@ import {
   Team,
   TeamsAndEmployeesData
 } from '@/api/api_calls';
+import { useWalletInfo } from '@/hooks/useWalletInfo';
 
 interface CompanyDashboardProps {
   isLoading: boolean;
@@ -424,35 +425,53 @@ const CurrencyAmountCard = ({
   isLoading, 
   currentAmount, 
   onAmountUpdate,
-  teamsData
+  teamsData,
+  walletAddress,
+  chainId
 }: { 
   isLoading: boolean;
   currentAmount: number;
   onAmountUpdate: (newAmount: number) => void;
   teamsData?: TeamsAndEmployeesData;
+  walletAddress?: string;
+  chainId?: string;
 }) => {
   const [displayAmount, setDisplayAmount] = useState<string>('Loading...');
   const [isAmountLoading, setIsAmountLoading] = useState(true);
+  const [nativeBalance, setNativeBalance] = useState<{ amount: number; symbol: string } | null>(null);
 
   useEffect(() => {
     if (currentAmount !== 0) {
       setDisplayAmount(`$${currentAmount.toFixed(2)}`);
       setIsAmountLoading(false);
     } else {
-      // Initial load - fetch treasury balance
-      fetchTreasuryBalance()
+      // Initial load - fetch treasury balance using Blockscout with connected wallet
+      console.log('🔍 Fetching treasury balance from Blockscout...');
+      console.log('📍 Wallet Address:', walletAddress);
+      console.log('🔗 Chain ID:', chainId);
+      
+      fetchTreasuryBalance(walletAddress, chainId || '1')
         .then((balanceData) => {
+          console.log('💰 Balance Data from Blockscout:', balanceData);
           setDisplayAmount(`$${balanceData.amount.toFixed(2)}`);
           setIsAmountLoading(false);
           onAmountUpdate(balanceData.amount);
+          
+          // Store native balance if available
+          if (balanceData.nativeAmount && balanceData.nativeSymbol) {
+            setNativeBalance({
+              amount: balanceData.nativeAmount,
+              symbol: balanceData.nativeSymbol
+            });
+          }
         })
         .catch((error) => {
-          console.error('Error fetching treasury balance:', error);
+          console.error('❌ Error fetching treasury balance:', error);
           setDisplayAmount('Error loading balance');
           setIsAmountLoading(false);
         });
     }
-  }, [currentAmount, onAmountUpdate]);
+  }, [currentAmount, onAmountUpdate, walletAddress, chainId]);
 
   if (isLoading) {
     return (
@@ -600,6 +619,20 @@ const CurrencyAmountCard = ({
             }}>
               {displayAmount}
             </p>
+            
+            {/* Show native token amount if available */}
+            {nativeBalance && (
+              <p style={{
+                fontSize: typography.fontSize.lg,
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.secondary,
+                margin: '0 0 8px 0',
+                lineHeight: 1
+              }}>
+                {nativeBalance.amount.toFixed(6)} {nativeBalance.symbol}
+              </p>
+            )}
+            
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -616,7 +649,7 @@ const CurrencyAmountCard = ({
                 color: colors.text.secondary,
                 margin: 0
               }}>
-                Updated just now
+                {nativeBalance ? 'Live from Blockscout' : 'Updated just now'}
               </p>
             </div>
           </div>
@@ -940,6 +973,9 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   const [treasuryBalance, setTreasuryBalance] = useState<number>(0);
   const [teamsData, setTeamsData] = useState<TeamsAndEmployeesData | undefined>();
 
+  // Get wallet info from Dynamic login for Blockscout API calls
+  const { address: walletAddress, chainId } = useWalletInfo();
+
   // Fetch teams and employees data
   useEffect(() => {
     if (!isLoading) {
@@ -975,6 +1011,8 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
           currentAmount={treasuryBalance}
           onAmountUpdate={handleAmountUpdate}
           teamsData={teamsData}
+          walletAddress={walletAddress ?? undefined}
+          chainId={chainId ?? undefined}
         />
         <ActionsCard 
           isLoading={isLoading}

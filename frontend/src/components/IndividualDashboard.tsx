@@ -2,14 +2,17 @@
 
 import { colors, typography, spacing } from '@/theme/colors';
 import { useState, useEffect } from 'react';
-import { DollarSign, HandCoins, CreditCard, TrendingUp } from 'lucide-react';
+import { DollarSign, HandCoins, CreditCard, TrendingUp, Coins, ArrowDownLeft } from 'lucide-react';
 import LoadingCard from './LoadingCard';
+import TransactionTracker from './TransactionTracker';
+import TransactionInterface from './TransactionInterface';
 import { 
   fetchIndividualBalance,
   fetchCreditScore,
   IndividualBalance,
   CreditScore
 } from '@/api/api_calls';
+import { useWalletInfo } from '@/hooks/useWalletInfo';
 
 interface IndividualDashboardProps {
   isLoading: boolean;
@@ -34,18 +37,18 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
     <div style={{
       position: 'relative',
       width: '200px',
-      height: '100px',
+      height: '110px',
       margin: '0 auto'
     }}>
       {/* Background arc */}
       <svg 
         width="200" 
-        height="100" 
-        viewBox="0 0 200 100"
+        height="110" 
+        viewBox="0 0 200 110"
         style={{ position: 'absolute', top: 0, left: 0 }}
       >
         <path
-          d="M 20 80 A 80 80 0 0 1 180 80"
+          d="M 20 90 A 80 80 0 0 1 180 90"
           fill="none"
           stroke={colors.border}
           strokeWidth="8"
@@ -53,7 +56,7 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
         />
         {/* Score arc */}
         <path
-          d="M 20 80 A 80 80 0 0 1 180 80"
+          d="M 20 90 A 80 80 0 0 1 180 90"
           fill="none"
           stroke={scoreColor}
           strokeWidth="8"
@@ -68,7 +71,7 @@ const CreditScoreGauge = ({ score, maxScore }: { score: number; maxScore: number
       {/* Score text */}
       <div style={{
         position: 'absolute',
-        top: '35px',
+        top: '45px',
         left: '50%',
         transform: 'translateX(-50%)',
         textAlign: 'center'
@@ -208,6 +211,20 @@ const UserBalanceCard = ({
         }}>
           ${balance?.amount.toFixed(2) || '0.00'}
         </p>
+        
+        {/* Show native token amount if available */}
+        {balance?.nativeAmount && balance?.nativeSymbol && (
+          <p style={{
+            fontSize: typography.fontSize.lg,
+            fontWeight: typography.fontWeight.medium,
+            color: colors.text.secondary,
+            margin: '0 0 8px 0',
+            lineHeight: 1
+          }}>
+            {balance.nativeAmount.toFixed(6)} {balance.nativeSymbol}
+          </p>
+        )}
+        
         <div style={{
           display: 'flex',
           alignItems: 'center',
@@ -224,7 +241,7 @@ const UserBalanceCard = ({
             color: colors.text.secondary,
             margin: 0
           }}>
-            Updated just now
+            {balance?.nativeAmount ? 'Live from Blockscout' : 'Updated just now'}
           </p>
         </div>
       </div>
@@ -476,12 +493,15 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
   const [creditScore, setCreditScore] = useState<CreditScore | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
 
+  // Get wallet info for Blockscout API calls
+  const { address: connectedAddress, chainId } = useWalletInfo();
+
   useEffect(() => {
     if (!isLoading) {
       setIsDataLoading(true);
       
       Promise.all([
-        fetchIndividualBalance(),
+        fetchIndividualBalance(connectedAddress || undefined, chainId || '1'),
         fetchCreditScore()
       ]).then(([balanceData, creditData]) => {
         setBalance(balanceData);
@@ -492,14 +512,23 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
         setIsDataLoading(false);
       });
     }
-  }, [isLoading]);
+  }, [isLoading, connectedAddress, chainId]);
+
+  const companyAddress = '0x742E8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf12';
+  const employeeAddresses = [
+    '0x123e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf34',
+    '0x456e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf56',
+    '0x789e8d3d2CA4cb8e8Dcb8A3E2A3a8c5E9fB0Cf78'
+  ];
 
   return (
     <div>
+      {/* First Row - Balance and Actions */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
-        gap: spacing.xl
+        gap: spacing.xl,
+        marginBottom: spacing.xl
       }}>
         <UserBalanceCard 
           isLoading={isLoading || isDataLoading} 
@@ -508,6 +537,22 @@ export default function IndividualDashboard({ isLoading }: IndividualDashboardPr
         <FinancialActionsCard 
           isLoading={isLoading || isDataLoading}
           creditScore={creditScore}
+        />
+      </div>
+
+      {/* Second Row - Transaction Management */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+        gap: spacing.xl
+      }}>
+        <TransactionInterface
+          companyAddress={companyAddress}
+          employeeAddresses={employeeAddresses}
+        />
+        <TransactionTracker
+          companyAddress={companyAddress}
+          employeeAddresses={employeeAddresses}
         />
       </div>
     </div>

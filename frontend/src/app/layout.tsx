@@ -2,6 +2,7 @@ import React from 'react'
 import './globals.css'
 import type { Metadata } from 'next'
 import DynamicProvider from '@/providers/DynamicProvider'
+import BlockscoutProvider from '@/providers/BlockscoutProvider'
 import { APP_TITLE, APP_DESCRIPTION, APP_KEYWORDS, APP_AUTHORS, APP_VIEWPORT } from '@/constants/app'
 
 export const metadata: Metadata = {
@@ -31,7 +32,9 @@ export default function RootLayout({
       </head>
       <body style={{ fontFamily: '"Helvetica Neue", Helvetica, Arial, sans-serif' }}>
         <DynamicProvider>
-          {children}
+          <BlockscoutProvider>
+            {children}
+          </BlockscoutProvider>
         </DynamicProvider>
       </body>
     </html>

@@ -5,6 +5,8 @@ import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { ReactNode } from 'react';
 import { APP_NAME } from '@/constants/app';
 
+import VankCliffIcon from '@/media/VankCliff_Logo.svg';
+
 interface DynamicProviderProps {
   children: ReactNode;
 }
@@ -35,20 +37,7 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
 
   // Get the correct logo URL for Dynamic
   const getLogoUrl = () => {
-    if (typeof window !== 'undefined') {
-      // Use the current domain with the correct path
-      const protocol = window.location.protocol;
-      const host = window.location.host;
-      const basePath = window.location.pathname.split('/')[1]; // Get first path segment
-      
-      // Check if we're on GitHub Pages
-      if (host.includes('github.io') && basePath && basePath !== '') {
-        return `${protocol}//${host}/${basePath}/VankCliff_Logo.svg`;
-      }
-      return `${protocol}//${host}/VankCliff_Logo.svg`;
-    }
-    // Fallback for server-side rendering
-    return '/VankCliff_Logo.svg';
+    return VankCliffIcon;
   };
 
   // Use type assertion to work around TypeScript issues

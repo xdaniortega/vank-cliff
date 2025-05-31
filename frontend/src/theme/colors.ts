@@ -8,10 +8,14 @@ export const colors = {
   // Semantic colors
   background: '#FFFFFF',
   surface: '#F8F9FA',
+  success: '#10B981',  // Green
+  warning: '#F59E0B',  // Orange
+  error: '#EF4444',    // Red
   text: {
     primary: '#1A1A1A',
     secondary: '#6B7280',
-    light: '#9CA3AF'
+    light: '#9CA3AF',
+    tertiary: '#D1D5DB'
   },
   
   // UI colors
