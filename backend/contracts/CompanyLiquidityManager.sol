@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import '@openzeppelin/contracts/access/Ownable.sol';
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import './mocks/MockLiquidityPool.sol';
-import './interfaces/ILiquidityPool.sol';
-import './models/CompanyLiquidityModels.sol';
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "./mocks/MockLiquidityPool.sol";
+import "./interfaces/ILiquidityPool.sol";
+import "./models/CompanyLiquidityModels.sol";
 
 /**
  * @title CompanyLiquidityManager
- * @notice Manages liquidity positions and vesting schedules for companies
+ * @notice Manages liquidity positions and payroll schedules for companies
  */
 contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   using SafeERC20 for IERC20;
@@ -18,18 +18,18 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   // Mapping from company address to their liquidity positions
   mapping(address => LiquidityPosition[]) public companyPositions;
 
-  // Mapping from vesting ID to vesting information
-  mapping(uint256 => VestingInfo) public vestings;
+  // Mapping from payroll ID to payroll information
+  mapping(uint256 => PayrollInfo) public payrolls;
 
   // Mapping from company to total number of positions
   mapping(address => uint256) public companyPositionCount;
 
   // Mappings to store beneficiary data
-  mapping(uint256 => address[]) public vestingBeneficiaries; // vestingId => list of beneficiaries
-  mapping(uint256 => mapping(address => uint256)) public vestingAmounts; // vestingId => (beneficiary => amount)
-  mapping(uint256 => mapping(address => uint256)) public vestingUnlockTimes; // vestingId => (beneficiary => unlock time)
-  mapping(uint256 => mapping(address => bool)) public vestingHasClaimed; // vestingId => (beneficiary => has claimed)
-  mapping(uint256 => mapping(address => uint256)) public vestingRewardSnapshots; // vestingId => (beneficiary => reward snapshot)
+  mapping(uint256 => address[]) public payrollBeneficiaries; // payrollId => list of beneficiaries
+  mapping(uint256 => mapping(address => uint256)) public payrollAmounts; // payrollId => (beneficiary => amount)
+  mapping(uint256 => mapping(address => uint256)) public payrollUnlockTimes; // payrollId => (beneficiary => unlock time)
+  mapping(uint256 => mapping(address => bool)) public payrollHasClaimed; // payrollId => (beneficiary => has claimed)
+  mapping(uint256 => mapping(address => uint256)) public payrollRewardSnapshots; // payrollId => (beneficiary => reward snapshot)
 
   constructor() Ownable(msg.sender) {}
 
@@ -84,17 +84,17 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   }
 
   /**
-   * @dev Create a new vesting linked to a liquidity position with multiple beneficiaries
-   * @param vestingId Unique identifier for the vesting
+   * @dev Create a new payroll linked to a liquidity position with multiple beneficiaries
+   * @param payrollId Unique identifier for the payroll
    * @param company Address of the company
    * @param positionIndex Index of the liquidity position
    * @param beneficiaries List of beneficiary addresses
-   * @param amounts List of amounts to vest per beneficiary
-   * @param startTime When the vesting starts
-   * @param endTime When the vesting ends
+   * @param amounts List of amounts to pay per beneficiary
+   * @param startTime When the payroll starts
+   * @param endTime When the payroll ends
    */
-  function createVestingMulti(
-    uint256 vestingId,
+  function createPayrollMulti(
+    uint256 payrollId,
     address company,
     uint256 positionIndex,
     address[] calldata beneficiaries,
@@ -122,9 +122,9 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     }
     companyPositions[company][positionIndex].availableAmount -= total;
 
-    // Create vesting info
-    vestings[vestingId] = VestingInfo({
-      id: vestingId,
+    // Create payroll info
+    payrolls[payrollId] = PayrollInfo({
+      id: payrollId,
       positionIndex: positionIndex,
       totalAmount: total,
       startTime: startTime,
@@ -134,85 +134,85 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
 
     // Store beneficiary data
     for (uint256 i = 0; i < beneficiaries.length; i++) {
-      vestingBeneficiaries[vestingId].push(beneficiaries[i]);
-      vestingAmounts[vestingId][beneficiaries[i]] = amounts[i];
-      vestingHasClaimed[vestingId][beneficiaries[i]] = false;
-      vestingUnlockTimes[vestingId][beneficiaries[i]] = 0;
-      vestingRewardSnapshots[vestingId][beneficiaries[i]] = 0;
+      payrollBeneficiaries[payrollId].push(beneficiaries[i]);
+      payrollAmounts[payrollId][beneficiaries[i]] = amounts[i];
+      payrollHasClaimed[payrollId][beneficiaries[i]] = false;
+      payrollUnlockTimes[payrollId][beneficiaries[i]] = 0;
+      payrollRewardSnapshots[payrollId][beneficiaries[i]] = 0;
     }
   }
 
   /**
-   * @dev Unlock vesting for a beneficiary (can be called by anyone, but only after endTime)
-   * @param vestingId ID of the vesting
+   * @dev Unlock payroll for a beneficiary (can be called by anyone, but only after endTime)
+   * @param payrollId ID of the payroll
    * @param beneficiary Address of the beneficiary
    * @param company Address of the company
    */
-  function unlockVestingForBeneficiary(
-    uint256 vestingId,
+  function unlockPayrollForBeneficiary(
+    uint256 payrollId,
     address beneficiary,
     address company
   ) public {
-    VestingInfo storage vesting = vestings[vestingId];
-    if (!vesting.isActive) {
-      revert VestingNotActive();
+    PayrollInfo storage payroll = payrolls[payrollId];
+    if (!payroll.isActive) {
+      revert PayrollNotActive();
     }
-    if (block.timestamp < vesting.endTime) {
-      revert VestingNotEnded();
+    if (block.timestamp < payroll.endTime) {
+      revert PayrollNotEnded();
     }
-    if (vestingUnlockTimes[vestingId][beneficiary] != 0) {
+    if (payrollUnlockTimes[payrollId][beneficiary] != 0) {
       revert AlreadyUnlocked();
     }
-    uint256 positionIndex = vesting.positionIndex;
+    uint256 positionIndex = payroll.positionIndex;
 
     // Snapshot totalRewards at unlock
-    vestingUnlockTimes[vestingId][beneficiary] = block.timestamp;
-    vestingRewardSnapshots[vestingId][beneficiary] = companyPositions[company][positionIndex]
+    payrollUnlockTimes[payrollId][beneficiary] = block.timestamp;
+    payrollRewardSnapshots[payrollId][beneficiary] = companyPositions[company][positionIndex]
       .totalRewards;
   }
 
   /**
-   * @dev Claim vested amount and rewards for a beneficiary
-   * @param vestingId ID of the vesting
+   * @dev Claim payroll amount and rewards for a beneficiary
+   * @param payrollId ID of the payroll
    * @param company Address of the company
    */
-  function claimVestedAmount(uint256 vestingId, address company) external {
-    VestingInfo storage vesting = vestings[vestingId];
-    if (!vesting.isActive) {
-      revert VestingNotActive();
+  function claimPayrollAmount(uint256 payrollId, address company) external {
+    PayrollInfo storage payroll = payrolls[payrollId];
+    if (!payroll.isActive) {
+      revert PayrollNotActive();
     }
-    if (vestingHasClaimed[vestingId][msg.sender]) {
+    if (payrollHasClaimed[payrollId][msg.sender]) {
       revert AlreadyClaimed();
     }
 
     address beneficiary = msg.sender;
-    if (vestingAmounts[vestingId][beneficiary] == 0) {
+    if (payrollAmounts[payrollId][beneficiary] == 0) {
       revert NotABeneficiary();
     }
 
-    if (vestingUnlockTimes[vestingId][beneficiary] == 0) {
-      if (block.timestamp < vesting.endTime) {
-        revert VestingNotEnded();
+    if (payrollUnlockTimes[payrollId][beneficiary] == 0) {
+      if (block.timestamp < payroll.endTime) {
+        revert PayrollNotEnded();
       }
-      unlockVestingForBeneficiary(vestingId, beneficiary, company);
+      unlockPayrollForBeneficiary(payrollId, beneficiary, company);
     }
 
-    uint256 positionIndex = vesting.positionIndex;
+    uint256 positionIndex = payroll.positionIndex;
     // Calculate rewards: rewards since unlock
-    uint256 rewardsAtUnlock = vestingRewardSnapshots[vestingId][beneficiary];
+    uint256 rewardsAtUnlock = payrollRewardSnapshots[payrollId][beneficiary];
     uint256 rewardsNow = companyPositions[company][positionIndex].totalRewards;
-    uint256 totalVesting = vesting.totalAmount;
-    uint256 userShare = vestingAmounts[vestingId][beneficiary];
-    uint256 rewardShare = ((rewardsNow - rewardsAtUnlock) * userShare) / totalVesting;
+    uint256 totalPayroll = payroll.totalAmount;
+    uint256 userShare = payrollAmounts[payrollId][beneficiary];
+    uint256 rewardShare = ((rewardsNow - rewardsAtUnlock) * userShare) / totalPayroll;
 
     // Mark as claimed
-    vestingHasClaimed[vestingId][beneficiary] = true;
+    payrollHasClaimed[payrollId][beneficiary] = true;
 
     // Update available amount in position
     companyPositions[company][positionIndex].availableAmount += userShare;
 
     // Transfer logic for unlock and rewards (to be implemented as needed)
-    emit VestingClaimed(vestingId, beneficiary, userShare);
+    emit PayrollClaimed(payrollId, beneficiary, userShare);
     emit RewardsClaimed(beneficiary, positionIndex, rewardShare);
   }
 
@@ -243,17 +243,17 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   }
 
   /**
-   * @dev Get vesting information
-   * @param vestingId ID of the vesting
+   * @dev Get payroll information
+   * @param payrollId ID of the payroll
    * @return positionIndex Index of the linked liquidity position
-   * @return amount Amount vested
-   * @return startTime When the vesting starts
-   * @return endTime When the vesting ends
+   * @return amount Amount in payroll
+   * @return startTime When the payroll starts
+   * @return endTime When the payroll ends
    * @return claimedAmount Amount already claimed
-   * @return isActive Whether the vesting is active
+   * @return isActive Whether the payroll is active
    */
-  function getVestingInfo(
-    uint256 vestingId
+  function getPayrollInfo(
+    uint256 payrollId
   )
     external
     view
@@ -266,14 +266,14 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
       bool isActive
     )
   {
-    VestingInfo storage vesting = vestings[vestingId];
+    PayrollInfo storage payroll = payrolls[payrollId];
     return (
-      vesting.positionIndex,
-      vesting.totalAmount,
-      vesting.startTime,
-      vesting.endTime,
-      vestingRewardSnapshots[vestingId][msg.sender],
-      vesting.isActive
+      payroll.positionIndex,
+      payroll.totalAmount,
+      payroll.startTime,
+      payroll.endTime,
+      payrollRewardSnapshots[payrollId][msg.sender],
+      payroll.isActive
     );
   }
 
@@ -284,7 +284,7 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
    * @return pool Address of the pool
    * @return positionId ID in the pool
    * @return totalAmount Total amount in position
-   * @return availableAmount Available amount for vesting
+   * @return availableAmount Available amount for payroll
    * @return totalRewards Total rewards accumulated
    * @return claimedRewards Rewards already claimed
    * @return isActive Whether the position is active
@@ -354,24 +354,24 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   }
 
   /**
-   * @dev Cancel a vesting and return the amount to available
-   * @param vestingId ID of the vesting to cancel
+   * @dev Cancel a payroll and return the amount to available
+   * @param payrollId ID of the payroll to cancel
    * @param company Address of the company
    */
-  function cancelVesting(uint256 vestingId, address company) external onlyOwner {
-    if (!vestings[vestingId].isActive) {
-      revert VestingNotActive();
+  function cancelPayroll(uint256 payrollId, address company) external onlyOwner {
+    if (!payrolls[payrollId].isActive) {
+      revert PayrollNotActive();
     }
 
-    VestingInfo storage vesting = vestings[vestingId];
-    uint256 positionIndex = vesting.positionIndex;
-    uint256 remainingAmount = vesting.totalAmount;
+    PayrollInfo storage payroll = payrolls[payrollId];
+    uint256 positionIndex = payroll.positionIndex;
+    uint256 remainingAmount = payroll.totalAmount;
 
     // Return remaining amount to available
     companyPositions[company][positionIndex].availableAmount += remainingAmount;
 
-    // Mark vesting as inactive
-    vesting.isActive = false;
+    // Mark payroll as inactive
+    payroll.isActive = false;
   }
 
   /**
@@ -428,16 +428,16 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   }
 
   /**
-   * @dev Internal function to create vesting
-   * @param vestingId Unique identifier for the vesting
+   * @dev Internal function to create payroll
+   * @param payrollId Unique identifier for the payroll
    * @param company Address of the company
    * @param positionIndex Index of the liquidity position
-   * @param amount Amount to vest
-   * @param startTime When the vesting starts
-   * @param endTime When the vesting ends
+   * @param amount Amount to pay
+   * @param startTime When the payroll starts
+   * @param endTime When the payroll ends
    */
-  function _createVesting(
-    uint256 vestingId,
+  function _createPayroll(
+    uint256 payrollId,
     address company,
     uint256 positionIndex,
     uint256 amount,
@@ -459,37 +459,37 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     // Update available amount
     companyPositions[company][positionIndex].availableAmount -= amount;
 
-    // Create vesting
-    VestingInfo storage vesting = vestings[vestingId];
-    vesting.positionIndex = positionIndex;
-    vesting.totalAmount = amount;
-    vesting.startTime = startTime;
-    vesting.endTime = endTime;
-    vesting.isActive = true;
+    // Create payroll
+    PayrollInfo storage payroll = payrolls[payrollId];
+    payroll.positionIndex = positionIndex;
+    payroll.totalAmount = amount;
+    payroll.startTime = startTime;
+    payroll.endTime = endTime;
+    payroll.isActive = true;
   }
 
   /**
-   * @dev Add liquidity position and create vesting in a single transaction
+   * @dev Add liquidity position and create payroll in a single transaction
    * @param company Address of the company
    * @param pool Address of the liquidity pool
    * @param amount0 Amount of token0 to add
    * @param amount1 Amount of token1 to add
-   * @param vestingId Unique identifier for the vesting
-   * @param vestingAmount Amount to vest
-   * @param startTime When the vesting starts
-   * @param endTime When the vesting ends
+   * @param payrollId Unique identifier for the payroll
+   * @param payrollAmount Amount to pay
+   * @param startTime When the payroll starts
+   * @param endTime When the payroll ends
    */
-  function addLiquidityAndCreateVesting(
+  function addLiquidityAndCreatePayroll(
     address company,
     address pool,
     uint256 amount0,
     uint256 amount1,
-    uint256 vestingId,
-    uint256 vestingAmount,
+    uint256 payrollId,
+    uint256 payrollAmount,
     uint256 startTime,
     uint256 endTime
   ) external {
     uint256 positionIndex = _addLiquidityPosition(company, pool, amount0, amount1);
-    _createVesting(vestingId, company, positionIndex, vestingAmount, startTime, endTime);
+    _createPayroll(payrollId, company, positionIndex, payrollAmount, startTime, endTime);
   }
 }

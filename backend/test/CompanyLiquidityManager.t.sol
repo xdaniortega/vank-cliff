@@ -31,7 +31,7 @@ contract CompanyLiquidityManagerTest is Test {
     
     uint256 public constant INITIAL_BALANCE = 100000 * 10**18; // 100k tokens
     uint256 public constant LIQUIDITY_AMOUNT = 10000 * 10**18; // 10k tokens
-    uint256 public constant VESTING_AMOUNT = 5000 * 10**18; // 5k tokens
+    uint256 public constant PAYROLL_AMOUNT = 5000 * 10**18; // 5k tokens
     
     function setUp() public {
         // Deploy tokens
@@ -64,7 +64,7 @@ contract CompanyLiquidityManagerTest is Test {
         token0.mint(address(liquidityPool), INITIAL_BALANCE * 2);
     }
 
-    function test_AddLiquidityAndCreateVestingMulti() public {
+    function test_AddLiquidityAndCreatePayrollMulti() public {
         // Start acting as company
         vm.startPrank(company);
         
@@ -80,10 +80,10 @@ contract CompanyLiquidityManagerTest is Test {
             LIQUIDITY_AMOUNT
         );
         
-        // Create vesting schedule with multiple beneficiaries
-        uint256 vestingId = 1;
+        // Create payroll schedule with multiple beneficiaries
+        uint256 payrollId = 1;
         uint256 startTime = block.timestamp;
-        uint256 endTime = startTime + 365 days; // 1 year vesting
+        uint256 endTime = startTime + 365 days; // 1 year payroll
         
         address[] memory beneficiaries = new address[](3);
         beneficiaries[0] = employee1;
@@ -91,12 +91,12 @@ contract CompanyLiquidityManagerTest is Test {
         beneficiaries[2] = employee3;
         
         uint256[] memory amounts = new uint256[](3);
-        amounts[0] = VESTING_AMOUNT / 2; // 2500 tokens
-        amounts[1] = VESTING_AMOUNT / 4; // 1250 tokens
-        amounts[2] = VESTING_AMOUNT / 4; // 1250 tokens
+        amounts[0] = PAYROLL_AMOUNT / 2; // 2500 tokens
+        amounts[1] = PAYROLL_AMOUNT / 4; // 1250 tokens
+        amounts[2] = PAYROLL_AMOUNT / 4; // 1250 tokens
         
-        liquidityManager.createVestingMulti(
-            vestingId,
+        liquidityManager.createPayrollMulti(
+            payrollId,
             company,
             0, // position index
             beneficiaries,
@@ -120,33 +120,33 @@ contract CompanyLiquidityManagerTest is Test {
         
         assertEq(pool, address(liquidityPool));
         assertEq(totalAmount, LIQUIDITY_AMOUNT * 2); // Both tokens
-        assertEq(availableAmount, (LIQUIDITY_AMOUNT * 2) - VESTING_AMOUNT);
+        assertEq(availableAmount, (LIQUIDITY_AMOUNT * 2) - PAYROLL_AMOUNT);
         assertEq(isActive, true);
         
-        // Verify vesting was created
+        // Verify payroll was created
         (
-            uint256 vPositionIndex,
-            uint256 vAmount,
-            uint256 vStartTime,
-            uint256 vEndTime,
-            uint256 vClaimedAmount,
-            bool vIsActive
-        ) = liquidityManager.getVestingInfo(vestingId);
+            uint256 pPositionIndex,
+            uint256 pAmount,
+            uint256 pStartTime,
+            uint256 pEndTime,
+            uint256 pClaimedAmount,
+            bool pIsActive
+        ) = liquidityManager.getPayrollInfo(payrollId);
         
-        assertEq(vPositionIndex, 0);
-        assertEq(vAmount, VESTING_AMOUNT);
-        assertEq(vStartTime, startTime);
-        assertEq(vEndTime, endTime);
-        assertEq(vClaimedAmount, 0);
-        assertEq(vIsActive, true);
+        assertEq(pPositionIndex, 0);
+        assertEq(pAmount, PAYROLL_AMOUNT);
+        assertEq(pStartTime, startTime);
+        assertEq(pEndTime, endTime);
+        assertEq(pClaimedAmount, 0);
+        assertEq(pIsActive, true);
     }
 
     function test_RewardsPerBeneficiary() public {
-        // Setup initial liquidity and vesting with multiple beneficiaries
-        test_AddLiquidityAndCreateVestingMulti();
+        // Setup initial liquidity and payroll with multiple beneficiaries
+        test_AddLiquidityAndCreatePayrollMulti();
         
         uint256 startTime = block.timestamp;
-        uint256 vestingEndTime = startTime + 365 days;
+        uint256 payrollEndTime = startTime + 365 days;
         
         // Track claimed amounts
         uint256 employee1Claimed = 0;
@@ -167,12 +167,12 @@ contract CompanyLiquidityManagerTest is Test {
         liquidityManager.claimRewards(company, 0);
         vm.stopPrank();
         
-        // Fast forward to vesting end
-        vm.warp(vestingEndTime);
+        // Fast forward to payroll end
+        vm.warp(payrollEndTime);
         
-        // First employee claims after vesting period
+        // First employee claims after payroll period
         vm.startPrank(employee1);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         employee1Claimed = 2500000000000000000000;
         vm.stopPrank();
         
@@ -182,16 +182,16 @@ contract CompanyLiquidityManagerTest is Test {
         vm.stopPrank();
         
         // Fast forward another 30 days to accumulate more rewards
-        vm.warp(vestingEndTime + 30 days);
+        vm.warp(payrollEndTime + 30 days);
         
         // Company claims more rewards
         vm.startPrank(company);
         liquidityManager.claimRewards(company, 0);
         vm.stopPrank();
         
-        // Second employee claims (vesting period already ended)
+        // Second employee claims (payroll period already ended)
         vm.startPrank(employee2);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         employee2Claimed = 1250000000000000000000;
         vm.stopPrank();
         
@@ -201,16 +201,16 @@ contract CompanyLiquidityManagerTest is Test {
         vm.stopPrank();
         
         // Fast forward another 30 days
-        vm.warp(vestingEndTime + 60 days);
+        vm.warp(payrollEndTime + 60 days);
         
         // Company claims final rewards
         vm.startPrank(company);
         liquidityManager.claimRewards(company, 0);
         vm.stopPrank();
         
-        // Third employee claims (vesting period already ended)
+        // Third employee claims (payroll period already ended)
         vm.startPrank(employee3);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         employee3Claimed = 1250000000000000000000;
         vm.stopPrank();
         
@@ -226,9 +226,9 @@ contract CompanyLiquidityManagerTest is Test {
             ,
             uint256 claimedAmount1,
             bool isActive1
-        ) = liquidityManager.getVestingInfo(1);
+        ) = liquidityManager.getPayrollInfo(1);
         
-        // Verify vesting is still active but all amounts claimed
+        // Verify payroll is still active but all amounts claimed
         assertEq(isActive1, true);
         
         // Get position info to verify total rewards
@@ -260,19 +260,19 @@ contract CompanyLiquidityManagerTest is Test {
     }
 
     function test_OwnerFunctions() public {
-        // Setup initial liquidity and vesting with multiple beneficiaries
-        test_AddLiquidityAndCreateVestingMulti();
+        // Setup initial liquidity and payroll with multiple beneficiaries
+        test_AddLiquidityAndCreatePayrollMulti();
         
-        // Only owner can cancel vesting
+        // Only owner can cancel payroll
         vm.startPrank(employee1);
         vm.expectRevert(); // Should revert as employee is not owner
-        liquidityManager.cancelVesting(1, company);
+        liquidityManager.cancelPayroll(1, company);
         vm.stopPrank();
         
-        // Owner can cancel vesting
-        liquidityManager.cancelVesting(1, company);
+        // Owner can cancel payroll
+        liquidityManager.cancelPayroll(1, company);
         
-        // Verify vesting was cancelled
+        // Verify payroll was cancelled
         (
             ,
             ,
@@ -280,7 +280,7 @@ contract CompanyLiquidityManagerTest is Test {
             ,
             uint256 claimedAmount,
             bool isActive
-        ) = liquidityManager.getVestingInfo(1);
+        ) = liquidityManager.getPayrollInfo(1);
         
         assertEq(isActive, false);
         assertEq(claimedAmount, 0);
@@ -300,8 +300,8 @@ contract CompanyLiquidityManagerTest is Test {
     }
 
     function test_FullFlowMultiBeneficiary() public {
-        // Setup initial liquidity and vesting with multiple beneficiaries
-        test_AddLiquidityAndCreateVestingMulti();
+        // Setup initial liquidity and payroll with multiple beneficiaries
+        test_AddLiquidityAndCreatePayrollMulti();
         
         // Fast forward 30 days
         vm.warp(block.timestamp + 30 days);
@@ -311,20 +311,20 @@ contract CompanyLiquidityManagerTest is Test {
         liquidityManager.claimRewards(company, 0);
         vm.stopPrank();
         
-        // Fast forward to vesting end
+        // Fast forward to payroll end
         vm.warp(block.timestamp + 335 days);
         
-        // All employees claim their vested amounts
+        // All employees claim their payroll amounts
         vm.startPrank(employee1);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         vm.stopPrank();
         
         vm.startPrank(employee2);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         vm.stopPrank();
         
         vm.startPrank(employee3);
-        liquidityManager.claimVestedAmount(1, company);
+        liquidityManager.claimPayrollAmount(1, company);
         vm.stopPrank();
         
         // Verify final state
@@ -343,16 +343,16 @@ contract CompanyLiquidityManagerTest is Test {
         assertEq(totalRewards, claimedRewards); // All rewards were claimed
         assertEq(isActive, true); // Position still active
         
-        // Verify vesting state for each beneficiary
+        // Verify payroll state for each beneficiary
         (
             ,
             ,
             ,
             ,
-            uint256 vClaimedAmount1,
-            bool vIsActive1
-        ) = liquidityManager.getVestingInfo(1);
+            uint256 pClaimedAmount1,
+            bool pIsActive1
+        ) = liquidityManager.getPayrollInfo(1);
         
-        assertEq(vIsActive1, true); // Vesting still active but fully claimed
+        assertEq(pIsActive1, true); // Payroll still active but fully claimed
     }
 } 

@@ -11,8 +11,8 @@ contract CompanyLiquidityModels {
   error PositionNotActive();
   error InvalidBeneficiariesAmounts();
   error InsufficientAvailableAmount();
-  error VestingNotActive();
-  error VestingNotEnded();
+  error PayrollNotActive();
+  error PayrollNotEnded();
   error AlreadyUnlocked();
   error AlreadyClaimed();
   error NotABeneficiary();
@@ -29,8 +29,8 @@ contract CompanyLiquidityModels {
     uint256 amount1
   );
 
-  event VestingCreated(
-    uint256 indexed vestingId,
+  event PayrollCreated(
+    uint256 indexed payrollId,
     address indexed company,
     uint256 positionIndex,
     address[] beneficiaries,
@@ -39,9 +39,9 @@ contract CompanyLiquidityModels {
     uint256 endTime
   );
 
-  event VestingClaimed(uint256 indexed vestingId, address indexed beneficiary, uint256 amount);
+  event PayrollClaimed(uint256 indexed payrollId, address indexed beneficiary, uint256 amount);
 
-  event VestingCancelled(uint256 indexed vestingId, address indexed company);
+  event PayrollCancelled(uint256 indexed payrollId, address indexed company);
 
   event RewardsClaimed(address indexed company, uint256 indexed positionIndex, uint256 amount);
 
@@ -56,7 +56,7 @@ contract CompanyLiquidityModels {
     bool isActive;
   }
 
-  struct VestingInfo {
+  struct PayrollInfo {
     uint256 id;
     uint256 positionIndex;
     uint256 totalAmount;
