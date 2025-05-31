@@ -211,9 +211,45 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     // Update available amount in position
     companyPositions[company][positionIndex].availableAmount += userShare;
 
+    // Get pool address from current position
+    address pool = companyPositions[company][positionIndex].pool;
+
+    // Add liquidity position for beneficiary with claimed amount
+    // Split the claimed amount equally between token0 and token1
+    uint256 amount0 = userShare / 2;
+    uint256 amount1 = userShare - amount0; // Handle odd amounts
+
+    // Add liquidity position for beneficiary
+    uint256 beneficiaryPositionIndex = companyPositionCount[beneficiary];
+    companyPositions[beneficiary].push(
+      LiquidityPosition({
+        pool: pool,
+        positionId: 0, // Will be set by addLiquidity
+        totalAmount: userShare,
+        availableAmount: userShare,
+        totalRewards: 0,
+        claimedRewards: 0,
+        isActive: true
+      })
+    );
+
+    // Add liquidity to the pool
+    (uint256 positionId, uint256 liquidity) = MockLiquidityPool(pool).addLiquidity(
+      amount0,
+      amount1
+    );
+
+    // Update position ID
+    companyPositions[beneficiary][beneficiaryPositionIndex].positionId = positionId;
+    companyPositions[beneficiary][beneficiaryPositionIndex].totalAmount = liquidity;
+    companyPositions[beneficiary][beneficiaryPositionIndex].availableAmount = liquidity;
+
+    companyPositionCount[beneficiary]++;
+
     // Transfer logic for unlock and rewards (to be implemented as needed)
     emit PayrollClaimed(payrollId, beneficiary, userShare);
     emit RewardsClaimed(beneficiary, positionIndex, rewardShare);
+    emit LiquidityPositionAdded(beneficiary, pool, positionId, amount0, amount1);
   }
 
   /**
@@ -309,12 +345,17 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
       revert InvalidPositionIndex();
     }
     LiquidityPosition memory position = companyPositions[company][positionIndex];
+    
+    // Calculate real-time rewards from the pool
+    uint256 currentRewards = MockLiquidityPool(position.pool)
+      .calculateRewards(position.positionId);
+    
     return (
       position.pool,
       position.positionId,
       position.totalAmount,
       position.availableAmount,
-      position.totalRewards,
+      position.totalRewards + currentRewards, // Add current rewards
       position.claimedRewards,
       position.isActive
     );

@@ -205,3 +205,163 @@ The system includes comprehensive test coverage:
 5. Integration with external systems
 6. Enhanced emergency controls
 7. Compliance automation
+
+# Vank Cliff Backend Testing Guide
+
+This guide walks through the process of testing the Vank Cliff liquidity and payroll system using Hardhat tasks.
+
+## Prerequisites
+
+- Node.js and npm installed
+- Hardhat installed (`npm install hardhat@2.24.1`)
+- Local blockchain running (e.g., Hardhat Network)
+
+## Test Accounts
+
+For testing, we'll use these default Hardhat accounts:
+1. Company Account: `0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`
+2. Beneficiary Account: `0x70997970C51812dc3A010C7d01b50e0d17dc79C8`
+
+## Contract Addresses
+
+After deployment, these will be the default addresses:
+- CompanyLiquidityManager: `0x5FbDB2315678afecb367f032d93F642f64180aa3`
+- MockPool: `0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9`
+- MockToken: `0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0`
+- MockDAI: `0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512`
+
+## Step-by-Step Testing Flow
+
+### 1. Deploy Contracts
+
+Deploy all contracts using the Ignition module:
+```bash
+npx hardhat ignition deploy ignition/modules/CompanyLiquidity.ts --network localhost
+```
+
+### 2. Add Liquidity Position
+
+Add a liquidity position using the company account:
+```bash
+npx hardhat liquidity:add \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --pool 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 \
+  --amount0 10.0 \
+  --amount1 10.0 \
+  --network localhost
+```
+
+### 3. Create Payroll
+
+Create a payroll using the company account, linking it to the beneficiary:
+```bash
+npx hardhat payroll:create \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --position-index 0 \
+  --payroll-id 1 \
+  --beneficiaries 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \
+  --amounts 5 \
+  --start-time $(date +%s) \
+  --end-time $(($(date +%s) + 604800)) \
+  --network localhost
+```
+
+### 4. Simulate Time and Check Rewards
+
+Simulate time passage to accumulate rewards:
+```bash
+npx hardhat rewards:simulate \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --position-index 0 \
+  --payroll-id 1 \
+  --days 2 \
+  --network localhost
+```
+
+### 4.1 Liquidity position info
+```bash
+npx hardhat liquidity:info \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --position-index 0 \
+  --network localhost
+```
+
+### 5. Claim Rewards
+
+#### Company Claims
+Using the company account:
+```bash
+npx hardhat rewards:claim \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --position-index 0 \
+  --network localhost
+```
+
+#### Beneficiary Claims
+```bash
+
+npx hardhat rewards:simulate \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --position-index 0 \
+  --payroll-id 1 \
+  --days 7 \
+  --network localhost
+```
+
+Using the beneficiary account (after payroll period ends):
+```bash
+npx hardhat payroll:claim \
+  --contract 0x5FbDB2315678afecb367f032d93F642f64180aa3 \
+  --payroll-id 1 \
+  --company 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 \
+  --network localhost
+```
+
+### 6. Verify State
+
+Use the Hardhat console to check contract state:
+```javascript
+// Connect to contracts
+const CompanyLiquidityManager = await ethers.getContractFactory("CompanyLiquidityManager")
+const manager = await CompanyLiquidityManager.attach("0x5FbDB2315678afecb367f032d93F642f64180aa3")
+
+// Check payroll info
+const payrollInfo = await manager.getPayrollInfo(1)
+console.log("Payroll Info:", payrollInfo)
+
+// Check position info
+const positionInfo = await manager.getPositionInfo("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", 0)
+console.log("Position Info:", positionInfo)
+```
+
+## Important Notes
+
+1. **Account Usage**
+   - Always use the company account (`0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`) for:
+     - Adding liquidity
+     - Creating payrolls
+     - Claiming company rewards
+   - Always use the beneficiary account (`0x70997970C51812dc3A010C7d01b50e0d17dc79C8`) for:
+     - Claiming payroll rewards
+
+2. **Rewards System**
+   - The MockLiquidityPool uses a reward rate of 0.01 tokens per second per liquidity unit
+   - Initial rewards (1M tokens) are automatically minted to the pool upon deployment
+   - Company rewards can be claimed at any time while the position is active
+   - Beneficiary rewards can only be claimed after the payroll period ends
+
+3. **Time Simulation**
+   - Use the `rewards:simulate` task to advance time
+   - Each day simulated will generate rewards based on the liquidity provided
+   - The payroll period must end before beneficiaries can claim their rewards
+
+4. **Common Issues**
+   - If rewards aren't showing, verify the pool has enough reward tokens
+   - If claims fail, ensure you're using the correct account
+   - If payroll claims fail, verify the payroll period has ended

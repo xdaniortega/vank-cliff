@@ -4,6 +4,8 @@ import "@nomicfoundation/hardhat-foundry";
 import * as dotenv from "dotenv";
 import { EndpointId } from '@layerzerolabs/lz-definitions'
 
+// Import tasks
+import "./tasks/payroll";
 
 dotenv.config();
 

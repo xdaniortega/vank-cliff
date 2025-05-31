@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity 0.8.28;
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import '@openzeppelin/contracts/access/Ownable.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "./MockToken.sol";
 
 /**
  * @title MockLiquidityPool
@@ -28,7 +29,8 @@ contract MockLiquidityPool is Ownable {
   uint256 public nextPositionId;
 
   // Mock reward rate (rewards per second per liquidity unit)
-  uint256 public constant REWARD_RATE = 1e12; // Reduced to 0.000001 tokens per second per liquidity unit
+  uint256 public constant REWARD_RATE = 1e16; // Increased to 0.01 tokens per second per liquidity unit
+  uint256 public constant INITIAL_REWARDS = 1000000 * 1e18; // 1M tokens as initial rewards
 
   // Events
   event PositionCreated(
@@ -51,6 +53,9 @@ contract MockLiquidityPool is Ownable {
   constructor(address _token0, address _token1, address _owner) Ownable(_owner) {
     token0 = IERC20(_token0);
     token1 = IERC20(_token1);
+    
+    // Mint initial rewards to the pool
+    MockToken(address(token0)).mint(address(this), INITIAL_REWARDS);
   }
 
   /**
