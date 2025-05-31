@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.8.28;
 
-
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
-import { IPayrollEngine } from './IPayrollEngine.sol';
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ICurvePool } from "./interfaces/ICurvePool.sol";
 import { console } from "forge-std/console.sol";
 
-
-contract PayrollEngine is IPayrollEngine, Ownable, ReentrancyGuard {
+contract PayrollEngine is Ownable, ReentrancyGuard {
   event VestingFactorySet(address vestingFactory);
+  event PayrollCreated(address payroll);
+  event TokensSwapped(address stablecoinA, address stablecoinB, uint256 amountA, uint256 amountB);
 
   error InsufficientBalance();
   error InsufficientAllowance();
   error CurvePoolNotSet();
   struct CompanyData {
     bool isWhitelisted;
-    bytes32 payrollIds[];
+    bytes32[] payrollIds;
   }
   address public vestingFactory;
   mapping(address => CompanyData) public companyData;
@@ -84,8 +83,8 @@ contract PayrollEngine is IPayrollEngine, Ownable, ReentrancyGuard {
   function _swapPair(address stablecoinA, address stablecoinB, address curvePool, uint256 amount) internal nonReentrant returns (uint256) {
     // Get expected output amount from swap
     uint256 expectedOutput = ICurvePool(curvePool).getDy(
-        stablecoinToIndex[stablecoinA],
-        stablecoinToIndex[stablecoinB],
+        int128(int256(uint256(stablecoinToIndex[stablecoinA]))),
+        int128(int256(uint256(stablecoinToIndex[stablecoinB]))),
         amount
     );
     
@@ -97,8 +96,8 @@ contract PayrollEngine is IPayrollEngine, Ownable, ReentrancyGuard {
 
     // Perform the swap
     uint256 amountReceived = ICurvePool(curvePool).exchange(
-        stablecoinToIndex[stablecoinA],
-        stablecoinToIndex[stablecoinB],
+        int128(int256(uint256(stablecoinToIndex[stablecoinA]))),
+        int128(int256(uint256(stablecoinToIndex[stablecoinB]))),
         amount,
         minAmountOut,
         address(this)
@@ -108,24 +107,22 @@ contract PayrollEngine is IPayrollEngine, Ownable, ReentrancyGuard {
     return amountReceived;
   }
 
-  function _addLiquidity(address stablecoinA, address stablecoinB, address curvePool, uint256 amount) internal nonReentrant returns (uint256) {
+  function _addLiquidity(address stablecoinA, address stablecoinB, address curvePool, uint256[] memory amounts) internal nonReentrant returns (uint256) {
     // Calculate expected LP tokens
-    uint256 expectedLPTokens = ICurvePool(curvePool).calcTokenAmount(amount, true);
+    uint256 expectedLPTokens = ICurvePool(curvePool).calcTokenAmount(amounts, true);
     uint256 minLPTokens = expectedLPTokens * (BASIS_POINTS - SLIPPAGE_TOLERANCE) / BASIS_POINTS;
 
     // Approve Curve pool to spend both tokens
-    IERC20(stablecoinA).approve(curvePool, amount);
-    IERC20(stablecoinB).approve(curvePool, amount);
+    IERC20(stablecoinA).approve(curvePool, amounts[0]);
+    IERC20(stablecoinB).approve(curvePool, amounts[1]);
 
     // Add liquidity
     uint256 lpTokensReceived = ICurvePool(curvePool).addLiquidity(
-        amount,
-        amountReceived,
+        amounts,
         minLPTokens,
         address(this)
     );
 
-    emit LiquidityAdded(amount, lpTokensReceived);
     return lpTokensReceived;
   }
 
@@ -134,8 +131,15 @@ contract PayrollEngine is IPayrollEngine, Ownable, ReentrancyGuard {
   function _liquidityBalancer(address stablecoinA, address stablecoinB, uint256 amount) internal nonReentrant returns (uint256) {
     address curvePool = stablecoinToCurvePool[stablecoinA];
     uint256 amountReceived = _swapPair(stablecoinA, stablecoinB, curvePool, amount);
-    uint256 lpTokensReceived = _addLiquidity(stablecoinA, stablecoinB, curvePool, amountReceived);
+    
+    // Create amounts array explicitly
+    uint256[] memory amounts = new uint256[](2);
+    amounts[0] = amount;
+    amounts[1] = amountReceived;
+    
+    uint256 lpTokensReceived = _addLiquidity(stablecoinA, stablecoinB, curvePool, amounts);
     console.log("LP tokens received:");
     console.log(lpTokensReceived);
+    return lpTokensReceived;
   }
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity 0.8.20;
+pragma solidity 0.8.28;
 
 import { IERC20 } from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import { ReentrancyGuard } from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
@@ -8,13 +8,38 @@ import { Ownable } from '@openzeppelin/contracts/access/Ownable.sol';
 
 contract PayrollManager is ReentrancyGuard, Ownable {
   using SafeERC20 for IERC20;
+
+  // Custom errors
+  error AddressCannotBeZero();
+  error ArraysMustHaveSameLength();
+  error notEnoughFunds();
+  error DurationMustBeGreaterThanZero();
+  error AmountMustBeGreaterThanZero();
+  error invalidCliff();
+  error invalidStartTimestamp();
+  error OnlyBeneficiaryOrOwnerCanReleaseVestedTokens();
+  error AllTokensVested();
+  error PayrollAlreadyExists();
+  error PayrollScheduleNotExist();
+
+  struct PayrollSchedule {
+    address beneficiary; // Beneficiary of tokens after they are released
+    uint256 cliff; // Cliff time of the vesting in seconds
+    uint256 start; // Start time of the vesting period in seconds since the UNIX epoch
+    uint256 duration; // duration of the vesting period in seconds
+    uint256 amountTotal; // Total amount of tokens to be released at the end of the vesting, comes with 10% already discounted
+    uint256 claimFrequencyInSeconds; // Period in secs which user can claim (ex. every week), if 0, would be every sec
+    uint256 lastClaimDate; // Last date where user claimed
+    uint256 released; // Amount of tokens released
+    bool revoked; // Whether or not the vesting has been revoked
+  }
+  using SafeERC20 for IERC20;
   /// @dev Variable to store interface from token ERC20 pass on the constructor
   IERC20 public token;
   /// @dev Constant to set the claim frequency in seconds, 1 day default value.
   uint256 private constant CLAIM_FREQUENCY_IN_SECONDS = 86400;
   /// @dev Total vested amount on the contract
   uint256 public payrollSchedulesTotalAmount;
-
   /// @dev Mapping to bound PayrollScheduleId to PayrollSchedule struct
   mapping(bytes32 => PayrollSchedule) public payrollSchedules;
   /// @dev Mapping of holder to array of Payroll schedules id
@@ -29,13 +54,8 @@ contract PayrollManager is ReentrancyGuard, Ownable {
     token = IERC20(tokenAddress);
   }
 
-  receive() external payable {
-    emit EthDeposited(msg.sender, msg.value);
-  }
-
   /**
    * @notice Creates a new Payroll schedule for a beneficiary.
-   * @param _phaseName a string identifier for the Payroll schedule, can be anything
    * @param _beneficiary address of the beneficiary to whom vested tokens are transferred
    * @param _start start time of the Payroll period
    * @param _cliff duration in seconds of the cliff in which tokens will begin to vest
@@ -44,14 +64,13 @@ contract PayrollManager is ReentrancyGuard, Ownable {
    * @param _amount total amount of tokens to be released at the end of the Payroll
    */
   function createPayrollSchedule(
-    string memory _phaseName,
     address _beneficiary,
     uint256 _start,
     uint256 _cliff,
     uint256 _duration,
     uint256 _claimFrequencyInSeconds,
     uint256 _amount
-  ) external onlyAdminRole returns (bytes32 payrollId) {
+  ) external onlyOwner returns (bytes32 payrollId) {
     if (payrollSchedulesTotalAmount + _amount > token.balanceOf(address(this))) {
       revert notEnoughFunds();
     }
@@ -59,7 +78,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
 
     return
       _createPayrollSchedule(
-        _phaseName,
         _beneficiary,
         _start,
         _cliff,
@@ -70,19 +88,17 @@ contract PayrollManager is ReentrancyGuard, Ownable {
   }
 
   function createBatchPayrollSchedule(
-    string[] memory _phaseName,
     address[] memory _beneficiary,
     uint256[] memory _start,
     uint256[] memory _cliff,
     uint256[] memory _duration,
     uint256[] memory _claimFrequencyInSeconds,
     uint256[] memory _amount
-  ) external onlyAdminRole returns (bytes32[] memory) {
-    uint256 length = _phaseName.length;
+  ) external onlyOwner returns (bytes32[] memory) {
+    uint256 length = _beneficiary.length;
     bytes32[] memory payrollIds = new bytes32[](length);
 
     if (
-      _beneficiary.length != length ||
       _start.length != length ||
       _cliff.length != length ||
       _duration.length != length ||
@@ -99,7 +115,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
       payrollSchedulesTotalAmount += _amount[i];
 
       payrollIds[i] = _createPayrollSchedule(
-        _phaseName[i],
         _beneficiary[i],
         _start[i],
         _cliff[i],
@@ -117,15 +132,11 @@ contract PayrollManager is ReentrancyGuard, Ownable {
 
   /**
    * @dev Release vested amount of tokens.
-   * @param _PayrollId the Payroll schedule identifier
+   * @param _payrollId the Payroll schedule identifier
    */
   function release(bytes32 _payrollId) external nonReentrant {
     PayrollSchedule storage payrollSchedule = payrollSchedules[_payrollId];
     uint256 currentTime = block.timestamp;
-    if (_msgSender() != payrollSchedule.beneficiary && !hasRole(ADMIN_ROLE, _msgSender())) {
-      revert OnlyBeneficiaryOrOwnerCanReleaseVestedTokens();
-    }
-
     uint256 claimable = _calculateVestedAmount(payrollSchedule, currentTime);
     if (claimable == 0) {
       revert AllTokensVested();
@@ -135,8 +146,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
     payrollSchedulesTotalAmount -= claimable;
 
     token.safeTransfer(payrollSchedule.beneficiary, claimable);
-
-    emit OnClaim(_payrollId, payrollSchedule.beneficiary, payrollSchedulesTotalAmount);
   }
 
   /**
@@ -164,7 +173,7 @@ contract PayrollManager is ReentrancyGuard, Ownable {
 
   /**
    * @notice Function to compute the Payroll schedule identifier
-   * @param _Payroll Payroll schedule structure
+   * @param _payroll Payroll schedule structure
    * @return bytes32 Computed Payroll schedule identifier
    */
   function computePayrollId(PayrollSchedule memory _payroll) public pure returns (bytes32) {
@@ -198,7 +207,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
   }
 
   function _createPayrollSchedule(
-    string memory _phaseName,
     address _beneficiary,
     uint256 _start,
     uint256 _cliff,
@@ -223,7 +231,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
     }
 
     PayrollSchedule memory payrollSchedule = PayrollSchedule(
-      _phaseName,
       _beneficiary,
       _cliff,
       _start,
@@ -245,8 +252,6 @@ contract PayrollManager is ReentrancyGuard, Ownable {
     holderAddrToPayrollsId[_beneficiary].push(payrollScheduleId);
     payrollSchedulesIds.push(payrollScheduleId);
 
-    emit CreatedPayrollSchedule(payrollScheduleId, _beneficiary, payrollSchedulesTotalAmount);
-
     return payrollScheduleId;
   }
 
@@ -257,7 +262,7 @@ contract PayrollManager is ReentrancyGuard, Ownable {
    *      - Cliff period
    *      - Already released tokens
    *      - Claim intervals
-   * @param _Payroll Structure containing the complete Payroll schedule information
+   * @param _payroll Structure containing the complete Payroll schedule information
    * @param _referenceTimestamp Timestamp for which vested amount is calculated
    * @return uint256 Amount of tokens that can be claimed:
    *         - 0 if in cliff period
