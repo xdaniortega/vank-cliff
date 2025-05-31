@@ -18,6 +18,12 @@ import {
   BlockscoutMeritActivityLog
 } from './blockscout-api';
 
+import { CompanyLiquidityManager } from '../typechain-types';
+import { getContract } from 'viem';
+import { usePublicClient, useWalletClient } from 'viem';
+import { usePayrollContract } from '../hooks/usePayrollContract';
+import { useWalletInfo } from '../contexts/WalletContext';
+
 // Types and Interfaces
 export interface Employee {
   id: string;
@@ -853,23 +859,58 @@ export const deleteTeam = (teamId: string): Promise<{ success: boolean; error?: 
 };
 
 /**
- * Processes salary payments for all employees
+ * Processes salary payments for all employees using the CompanyLiquidityManager contract
  * @param employees - Array of employees to pay
  * @param totalAmount - Total amount to be paid
  * @returns Promise<PaymentResult>
  */
-export const processPayrollPayments = (
+export const processPayrollPayments = async (
   employees: Employee[], 
   totalAmount: number
 ): Promise<PaymentResult> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        success: true,
-        transactionId: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      });
-    }, 3000); // 3-second delay
-  });
+  try {
+    const { addLiquidity, createPayroll } = usePayrollContract();
+    
+    // Get pool address from env
+    const poolAddress = process.env.NEXT_PUBLIC_LIQUIDITY_POOL_ADDRESS as `0x${string}`;
+    if (!poolAddress) {
+      throw new Error('Pool address not configured');
+    }
+
+    // 1. Add liquidity
+    const amount = BigInt(totalAmount * 1e18);
+    await addLiquidity(
+      poolAddress,
+      amount,
+      amount
+    );
+
+    // 2. Create payroll
+    const payrollId = BigInt(Date.now());
+    const startTime = BigInt(Math.floor(Date.now() / 1000));
+    const endTime = startTime + BigInt(30 * 24 * 60 * 60); // 30 days from now
+
+    const receipt = await createPayroll(
+      payrollId,
+      BigInt(0), // positionIndex
+      employees.map(e => e.walletAddress as `0x${string}`),
+      employees.map(e => BigInt(e.salary * 1e18)),
+      startTime,
+      endTime
+    );
+
+    return {
+      success: true,
+      transactionId: receipt.transactionHash
+    };
+
+  } catch (error) {
+    console.error('Error processing payroll payments:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
+  }
 };
 
 // =============================================================================
