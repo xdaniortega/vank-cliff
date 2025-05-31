@@ -5,8 +5,6 @@ import { EthereumWalletConnectors } from '@dynamic-labs/ethereum';
 import { ReactNode } from 'react';
 import { APP_NAME } from '@/constants/app';
 
-import VankCliffIcon from '@/media/VankCliff_Logo.svg';
-
 interface DynamicProviderProps {
   children: ReactNode;
 }
@@ -35,11 +33,6 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
     );
   }
 
-  // Get the correct logo URL for Dynamic
-  const getLogoUrl = () => {
-    return VankCliffIcon;
-  };
-
   // Use type assertion to work around TypeScript issues
   const DynamicProvider = DynamicContextProvider as any;
 
@@ -49,7 +42,7 @@ export default function DynamicProvider({ children }: DynamicProviderProps) {
         environmentId,
         walletConnectors: [EthereumWalletConnectors],
         appName: APP_NAME,
-        appLogoUrl: getLogoUrl(),
+        appLogoUrl: '/VankCliff_Logo.svg',
         
         // Customize the appearance
         cssOverrides: `
