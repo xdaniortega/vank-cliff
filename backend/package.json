@@ -41,6 +41,7 @@
     "typescript": "^5.8.3"
   },
   "dependencies": {
+    "@layerzerolabs/lz-definitions": "^3.0.99",
     "@nomicfoundation/hardhat-foundry": "^1.1.3"
   }
 }
