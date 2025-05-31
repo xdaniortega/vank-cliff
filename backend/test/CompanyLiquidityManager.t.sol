@@ -7,7 +7,7 @@ import "../contracts/mocks/MockLiquidityPool.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 // Mock ERC20 token for testing
-contract MockToken is ERC20 {
+contract MockToken2 is ERC20 {
     constructor(string memory name, string memory symbol) ERC20(name, symbol) {
         _mint(msg.sender, 1000000 * 10**decimals());
     }
@@ -20,8 +20,8 @@ contract MockToken is ERC20 {
 contract CompanyLiquidityManagerTest is Test {
     CompanyLiquidityManager public liquidityManager;
     MockLiquidityPool public liquidityPool;
-    MockToken public token0; // DAI-like token
-    MockToken public token1; // Another token for the pool
+    MockToken2 public token0; // DAI-like token
+    MockToken2 public token1; // Another token for the pool
     
     address public company = address(0x1);
     address public employee1 = address(0x2);
@@ -35,8 +35,8 @@ contract CompanyLiquidityManagerTest is Test {
     
     function setUp() public {
         // Deploy tokens
-        token0 = new MockToken("Mock DAI", "mDAI");
-        token1 = new MockToken("Mock Token", "mTKN");
+        token0 = new MockToken2("Mock DAI", "mDAI");
+        token1 = new MockToken2("Mock Token", "mTKN");
         
         // Deploy liquidity pool
         liquidityPool = new MockLiquidityPool(

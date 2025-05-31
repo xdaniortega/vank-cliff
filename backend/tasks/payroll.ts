@@ -218,11 +218,11 @@ task("liquidity:add", "Add a new liquidity position")
 task("liquidity:info", "Get information about a liquidity position")
     .addParam("contract", "Address of the CompanyLiquidityManager contract")
     .addParam("company", "Address of the company")
-    .addParam("positionIndex", "Index of the position")
+    .addParam("positionindex", "Index of the position")
     .setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
         const contract = await hre.ethers.getContractAt("CompanyLiquidityManager", taskArgs.contract) as CompanyLiquidityManager;
         
-        const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionIndex);
+        const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionindex);
         
         console.log("\nLiquidity Position Info:");
         console.log("------------------------");
@@ -239,7 +239,7 @@ task("liquidity:info", "Get information about a liquidity position")
 task("rewards:simulate", "Advance time and check rewards for company and users")
     .addParam("contract", "Address of the CompanyLiquidityManager contract")
     .addParam("company", "Address of the company")
-    .addParam("positionIndex", "Index of the position")
+    .addParam("positionindex", "Index of the position")
     .addParam("payrollId", "ID of the payroll")
     .addParam("days", "Number of days to advance")
     .setAction(async (taskArgs, hre: HardhatRuntimeEnvironment) => {
@@ -262,7 +262,7 @@ task("rewards:simulate", "Advance time and check rewards for company and users")
         await hre.network.provider.send("evm_mine");
         
         // Get position info for company rewards
-        const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionIndex);
+        const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionindex);
         
         console.log("\nCompany Position Rewards:");
         console.log("------------------------");
@@ -296,11 +296,11 @@ task("rewards:simulate", "Advance time and check rewards for company and users")
 task("rewards:add", "Mint and add rewards to a pool position")
   .addParam("contract", "Address of the CompanyLiquidityManager contract")
   .addParam("company", "Address of the company (must be a Hardhat account)")
-  .addParam("positionIndex", "Index of the liquidity position")
+  .addParam("positionindex", "Index of the liquidity position")
   .addParam("amount", "Amount of rewards to add (in ether units)")
   .setAction(async (taskArgs, hre) => {
     const contract = await hre.ethers.getContractAt("CompanyLiquidityManager", taskArgs.contract);
-    const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionIndex);
+    const positionInfo = await contract.getPositionInfo(taskArgs.company, taskArgs.positionindex);
     const pool = await hre.ethers.getContractAt("MockLiquidityPool", positionInfo.pool);
     const token0Address = await pool.token0();
     const token0 = await hre.ethers.getContractAt("MockToken", token0Address);
@@ -326,4 +326,4 @@ task("rewards:add", "Mint and add rewards to a pool position")
     const addRewardsTx = await pool.connect(companySigner).addRewards(positionInfo.positionId, amount);
     await addRewardsTx.wait();
     console.log(`Added ${taskArgs.amount} rewards to position ${positionInfo.positionId}`);
-  }); 
+  });

@@ -172,6 +172,54 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
   }
 
   /**
+   * @dev Internal function to add beneficiary position
+   * @param beneficiary Address of the beneficiary
+   * @param pool Address of the pool
+   * @param amount0 Amount of token0
+   * @param amount1 Amount of token1
+   * @return positionId ID of the created position
+   * @return liquidity Amount of liquidity received
+   */
+  function _addBeneficiaryPosition(
+    address beneficiary,
+    address pool,
+    uint256 amount0,
+    uint256 amount1
+  ) internal returns (uint256 positionId, uint256 liquidity) {
+    // Get token addresses
+    address token0 = address(MockLiquidityPool(pool).token0());
+    address token1 = address(MockLiquidityPool(pool).token1());
+
+    // Approve tokens for the pool
+    IERC20(token0).approve(pool, amount0);
+    IERC20(token1).approve(pool, amount1);
+
+    // Add liquidity position for beneficiary
+    uint256 beneficiaryPositionIndex = companyPositionCount[beneficiary];
+    companyPositions[beneficiary].push(
+      LiquidityPosition({
+        pool: pool,
+        positionId: 0, // Will be set by addLiquidity
+        totalAmount: amount0 + amount1,
+        availableAmount: amount0 + amount1,
+        totalRewards: 0,
+        claimedRewards: 0,
+        isActive: true
+      })
+    );
+
+    // Add liquidity to the pool
+    (positionId, liquidity) = MockLiquidityPool(pool).addLiquidity(amount0, amount1);
+
+    // Update position ID
+    companyPositions[beneficiary][beneficiaryPositionIndex].positionId = positionId;
+    companyPositions[beneficiary][beneficiaryPositionIndex].totalAmount = liquidity;
+    companyPositions[beneficiary][beneficiaryPositionIndex].availableAmount = liquidity;
+
+    companyPositionCount[beneficiary]++;
+  }
+
+  /**
    * @dev Claim payroll amount and rewards for a beneficiary
    * @param payrollId ID of the payroll
    * @param company Address of the company
@@ -213,43 +261,27 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
 
     // Get pool address from current position
     address pool = companyPositions[company][positionIndex].pool;
+    address token0 = address(MockLiquidityPool(pool).token0());
 
-    // Add liquidity position for beneficiary with claimed amount
+    // Claim rewards from pool first if any
+    if (rewardShare > 0) {
+      // Aprobar al pool para transferir tokens al beneficiario
+      IERC20(token0).approve(pool, rewardShare);
+      
+      // Transferir recompensas directamente desde el pool al beneficiario
+      if (!IERC20(token0).transferFrom(pool, beneficiary, rewardShare)) {
+        revert TokenTransferFailed();
+      }
+    }
+
     // Split the claimed amount equally between token0 and token1
     uint256 amount0 = userShare / 2;
     uint256 amount1 = userShare - amount0; // Handle odd amounts
 
-    // Add liquidity position for beneficiary
-    uint256 beneficiaryPositionIndex = companyPositionCount[beneficiary];
-    companyPositions[beneficiary].push(
-      LiquidityPosition({
-        pool: pool,
-        positionId: 0, // Will be set by addLiquidity
-        totalAmount: userShare,
-        availableAmount: userShare,
-        totalRewards: 0,
-        claimedRewards: 0,
-        isActive: true
-      })
-    );
+    // Add beneficiary position
+    _addBeneficiaryPosition(beneficiary, pool, amount0, amount1);
 
-    // Add liquidity to the pool
-    (uint256 positionId, uint256 liquidity) = MockLiquidityPool(pool).addLiquidity(
-      amount0,
-      amount1
-    );
-
-    // Update position ID
-    companyPositions[beneficiary][beneficiaryPositionIndex].positionId = positionId;
-    companyPositions[beneficiary][beneficiaryPositionIndex].totalAmount = liquidity;
-    companyPositions[beneficiary][beneficiaryPositionIndex].availableAmount = liquidity;
-
-    companyPositionCount[beneficiary]++;
-
-    // Transfer logic for unlock and rewards (to be implemented as needed)
-    emit PayrollClaimed(payrollId, beneficiary, userShare);
-    emit RewardsClaimed(beneficiary, positionIndex, rewardShare);
-    emit LiquidityPositionAdded(beneficiary, pool, positionId, amount0, amount1);
+    emit PayrollClaimed(payrollId, beneficiary, userShare + rewardShare);
   }
 
   /**
