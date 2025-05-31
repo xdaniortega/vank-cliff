@@ -19,6 +19,13 @@ const config: HardhatUserConfig = {
       }
     }
   },
+  typechain: {
+    outDir: "../typechain-types",
+    target: "ethers-v6",
+    alwaysGenerateOverloads: false,
+    externalArtifacts: ["externalArtifacts/*.json"],
+    dontOverrideCompile: false
+  },
   networks: {
     hardhat: {
       chainId: 31337,

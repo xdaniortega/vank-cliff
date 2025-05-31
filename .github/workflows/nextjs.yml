@@ -53,7 +53,9 @@ jobs:
         with:
           node-version: "20"
           cache: ${{ steps.detect-package-manager.outputs.manager }}
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            backend/package-lock.json
       - name: Setup Pages
         uses: actions/configure-pages@v5
         with:
@@ -72,6 +74,12 @@ jobs:
           # If source files changed but packages didn't, rebuild from a prior cache.
           restore-keys: |
             ${{ runner.os }}-nextjs-${{ hashFiles('frontend/**/package-lock.json', 'frontend/**/yarn.lock') }}-
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm install
+      - name: Build backend contracts and generate TypeChain types
+        working-directory: ./backend
+        run: npx hardhat compile
       - name: Install dependencies
         working-directory: ./frontend
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
