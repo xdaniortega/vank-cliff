@@ -64,18 +64,6 @@ export interface ClientCompanyInfo {
   foundedYear: number;
   employeeCount: number;
   website: string;
-  description: string;
-  employmentDetails: {
-    employeeId: string;
-    employeeName: string;
-    position: string;
-    department: string;
-    startDate: Date;
-    employmentType: string;
-    status: string;
-    manager: string;
-    workLocation: string;
-  };
 }
 
 export interface IndividualBalance {
@@ -657,7 +645,7 @@ export const fetchClientCompanyInfo = (): Promise<ClientCompanyInfo> => {
     setTimeout(() => {
       resolve({
         companyId: 'comp_vankcliff_001',
-        companyName: 'VankCliff Technologies',
+        companyName: 'Vank Cliff',
         companyLogo: '/VankCliff_Logo.svg',
         address: {
           street: '1234 Innovation Drive, Suite 500',
@@ -667,21 +655,9 @@ export const fetchClientCompanyInfo = (): Promise<ClientCompanyInfo> => {
           country: 'United States'
         },
         industry: 'Blockchain & Financial Technology',
-        foundedYear: 2019,
+        foundedYear: 2025,
         employeeCount: 1, // Only one employee
-        website: 'https://vankcliff.com',
-        description: 'VankCliff Technologies is a leading blockchain and financial technology company focused on creating innovative solutions for the future of digital finance. We specialize in decentralized applications, smart contracts, and cutting-edge fintech solutions.',
-        employmentDetails: {
-          employeeId: 'emp_vc_2024_0156',
-          employeeName: 'Mok Perdices Ortega',
-          position: 'Senior Blockchain Developer',
-          department: 'Development',
-          startDate: new Date('2023-03-15'),
-          employmentType: 'Full-time',
-          status: 'Active',
-          manager: 'CEO',
-          workLocation: 'Remote'
-        }
+        website: 'https://xdaniortega.github.io/vank-cliff/'
       });
     }, 1800); // 1.8-second delay
   });
