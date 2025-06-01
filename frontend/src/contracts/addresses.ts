@@ -1,10 +1,10 @@
 export const CONTRACT_ADDRESSES = {
   // Flow EVM (chainId: 747)
   flow: {
-    companyLiquidityManager: '0x8861eD313bd3548C160Cd66d305957A418CC4E8A',
-    mockDAI: '0xfA2E46102F25b0a694A931C3A5ad8C78a994E13D',
-    mockToken: '0xaaCA746b49D0F6021d4D8AdB6Bc7d25d0366cC96',
-    mockPool: '0xaB726376c4A028C0B13AD6FCf3f2f695EBDabAd0'
+    companyLiquidityManager: '0x337591DcBD295e7F2548705F1daC1c661ed864d6',
+    mockDAI: '0x5c5B7a1D518F8f9819e6300C44E8f5a98c853C55',
+    mockToken: '0x9c63B2b36358120789D087429483684d7d30f8eF',
+    mockPool: '0xC66Ed0d585DF3EF59D042637E87F8800D9733350'
   },
   // Hardhat local (chainId: 31337)
   localhost: {

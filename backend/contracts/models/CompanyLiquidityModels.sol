@@ -66,8 +66,10 @@ contract CompanyLiquidityModels {
   }
 
   struct BeneficiaryInfo {
+    address beneficiary;
     uint256 amount;
-    uint256 claimedAmount;
-    bool isActive;
+    uint256 unlockTime;
+    bool hasClaimed;
+    uint256 rewardSnapshot;
   }
 }

@@ -565,4 +565,92 @@ contract CompanyLiquidityManager is Ownable, CompanyLiquidityModels {
     uint256 positionIndex = _addLiquidityPosition(company, pool, amount0, amount1);
     _createPayroll(payrollId, company, positionIndex, payrollAmount, startTime, endTime);
   }
+
+  /**
+   * @dev Get complete beneficiary information for a payroll
+   * @param payrollId ID of the payroll
+   * @return beneficiaries List of beneficiary addresses
+   * @return amounts List of amounts per beneficiary
+   * @return unlockTimes List of unlock times per beneficiary
+   * @return hasClaimed List of claimed status per beneficiary
+   * @return rewardSnapshots List of reward snapshots per beneficiary
+   */
+  function getPayrollBeneficiariesInfo(
+    uint256 payrollId
+  ) external view returns (
+    address[] memory beneficiaries,
+    uint256[] memory amounts,
+    uint256[] memory unlockTimes,
+    bool[] memory hasClaimed,
+    uint256[] memory rewardSnapshots
+  ) {
+    beneficiaries = payrollBeneficiaries[payrollId];
+    uint256 length = beneficiaries.length;
+    
+    amounts = new uint256[](length);
+    unlockTimes = new uint256[](length);
+    hasClaimed = new bool[](length);
+    rewardSnapshots = new uint256[](length);
+
+    for (uint256 i = 0; i < length; i++) {
+      address beneficiary = beneficiaries[i];
+      amounts[i] = payrollAmounts[payrollId][beneficiary];
+      unlockTimes[i] = payrollUnlockTimes[payrollId][beneficiary];
+      hasClaimed[i] = payrollHasClaimed[payrollId][beneficiary];
+      rewardSnapshots[i] = payrollRewardSnapshots[payrollId][beneficiary];
+    }
+
+    return (beneficiaries, amounts, unlockTimes, hasClaimed, rewardSnapshots);
+  }
+
+  /**
+   * @dev Get complete payroll information including beneficiaries data
+   * @param payrollId ID of the payroll
+   * @return payrollInfo Basic payroll information (positionIndex, amount, startTime, endTime, isActive)
+   * @return beneficiariesInfo Complete beneficiaries information (addresses, amounts, unlockTimes, hasClaimed, rewardSnapshots)
+   * @return positionInfo Position information (pool, positionId, totalAmount, availableAmount, totalRewards, claimedRewards, isActive)
+   */
+  function getPayrollCompleteInfo(
+    uint256 payrollId,
+    address company
+  ) external view returns (
+    PayrollInfo memory payrollInfo,
+    BeneficiaryInfo[] memory beneficiariesInfo,
+    LiquidityPosition memory positionInfo
+  ) {
+    // Get basic payroll info
+    payrollInfo = payrolls[payrollId];
+    if (!payrollInfo.isActive) {
+      revert PayrollNotActive();
+    }
+
+    // Get position info
+    if (payrollInfo.positionIndex >= companyPositionCount[company]) {
+      revert InvalidPositionIndex();
+    }
+    positionInfo = companyPositions[company][payrollInfo.positionIndex];
+    
+    // Calculate real-time rewards
+    uint256 currentRewards = MockLiquidityPool(positionInfo.pool)
+      .calculateRewards(positionInfo.positionId);
+    positionInfo.totalRewards += currentRewards;
+
+    // Get beneficiaries info
+    address[] memory beneficiaries = payrollBeneficiaries[payrollId];
+    uint256 length = beneficiaries.length;
+    beneficiariesInfo = new BeneficiaryInfo[](length);
+
+    for (uint256 i = 0; i < length; i++) {
+      address beneficiary = beneficiaries[i];
+      beneficiariesInfo[i] = BeneficiaryInfo({
+        beneficiary: beneficiary,
+        amount: payrollAmounts[payrollId][beneficiary],
+        unlockTime: payrollUnlockTimes[payrollId][beneficiary],
+        hasClaimed: payrollHasClaimed[payrollId][beneficiary],
+        rewardSnapshot: payrollRewardSnapshots[payrollId][beneficiary]
+      });
+    }
+
+    return (payrollInfo, beneficiariesInfo, positionInfo);
+  }
 }

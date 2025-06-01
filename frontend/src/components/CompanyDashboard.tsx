@@ -1,8 +1,8 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
-import { useState, useEffect } from 'react';
-import { DollarSign, Zap, TrendingUp, X, User, Wallet, Award, Star, Clock } from 'lucide-react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
+import { DollarSign, Zap, TrendingUp, X, User, Wallet, Award, Star, Clock, Info, Calendar, ArrowRight, Users } from 'lucide-react';
 import LoadingCard from './LoadingCard';
 import BlockscoutTransactionHistory from './BlockscoutTransactionHistory';
 import AmountDisplay from './shared/AmountDisplay';
@@ -19,6 +19,13 @@ import {
 } from '@/api/api_calls';
 import { useWalletInfo } from '@/hooks/useWalletInfo';
 import CreatePayrollPopup from './CreatePayrollPopup';
+import PayrollPositionCard from './PayrollPositionCard';
+import { useCompanyPayrolls } from '@/hooks/useCompanyPayrolls';
+import { useReadContract } from 'wagmi';
+import { payrollContractABI } from '@/abi/payrollContractABI';
+import { useCompanyLastPayrolls } from '../hooks/useCompanyLastPayrolls';
+import { PayrollCompleteInfo } from '../hooks/useCompanyLastPayrolls';
+import PayrollScheduleDetails from './PayrollScheduleDetails';
 
 interface CompanyDashboardProps {
   isLoading: boolean;
@@ -444,17 +451,6 @@ const CurrencyAmountCard = ({
   chainId?: string;
   balance: TreasuryBalance | null;
 }) => {
-  const [displayAmount, setDisplayAmount] = useState<string>('Loading...');
-  const [isAmountLoading, setIsAmountLoading] = useState(true);
-
-  useEffect(() => {
-    if (balance) {
-      setDisplayAmount(`$${balance.amount.toFixed(2)}`);
-      setIsAmountLoading(false);
-      onAmountUpdate(balance.amount);
-    }
-  }, [balance, onAmountUpdate]);
-
   if (isLoading) {
     return (
       <LoadingCard title="Loading Currency..." showSpinner={true}>
@@ -559,7 +555,7 @@ const CurrencyAmountCard = ({
       <AmountDisplay balance={balance} isLoading={isAmountLoading} />
 
       {/* Teams Budget Section */}
-      {!isAmountLoading && teamBudgets.length > 0 && (
+      {balance && teamBudgets.length > 0 && (
         <div style={{
           position: 'relative',
           zIndex: 1
@@ -611,6 +607,12 @@ const CurrencyAmountCard = ({
             scrollbarColor: `${colors.border} transparent`
           }}>
             {teamBudgets.map((team) => {
+              // Calculate the actual payroll balance for the team
+              const payrollBalance = team.payrollPositions?.reduce((total, position) => {
+                // For each position, add the amount if it's active
+                return total + (position.isActive ? Number(position.amount) : 0n);
+              }, 0n) || 0n;
+
               return (
                 <div
                   key={team.id}
@@ -655,14 +657,14 @@ const CurrencyAmountCard = ({
                       margin: '0 0 2px 0',
                       lineHeight: 1
                     }}>
-                      ${team.budget.toLocaleString()}
+                      ${Number(payrollBalance) / 1e18}
                     </p>
                     <p style={{
                       fontSize: typography.fontSize.xs,
                       color: colors.text.secondary,
                       margin: 0
                     }}>
-                      Team Cost
+                      Payroll Balance
                     </p>
                   </div>
                 </div>
@@ -706,6 +708,10 @@ const ActionsCard = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCreatePayrollPopup, setShowCreatePayrollPopup] = useState(false);
+  const { address: companyAddress } = useWalletInfo();
+  const { payrolls, isLoading: isLoadingPayrolls, refetch: refetchPayrolls } = useCompanyPayrolls(
+    companyAddress as `0x${string}` | undefined
+  );
 
   const handleCreatePayment = () => {
     setShowCreatePayrollPopup(true);
@@ -713,6 +719,7 @@ const ActionsCard = ({
 
   const handlePayrollCreated = () => {
     onPaymentComplete(0); // Actualizar el balance después de crear el payroll
+    refetchPayrolls(); // Refresh the payrolls list
   };
 
   if (isLoading) {
@@ -757,18 +764,18 @@ const ActionsCard = ({
           <h2 style={{
             fontSize: typography.fontSize.xl,
             fontWeight: typography.fontWeight.bold,
-            color: colors.text.primary,
+                color: colors.text.primary,
             margin: '0 0 8px 0'
-          }}>
+              }}>
             Company Actions
           </h2>
-          <p style={{
-            fontSize: typography.fontSize.sm,
-            color: colors.text.secondary,
-            margin: 0
-          }}>
+            <p style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              margin: 0
+            }}>
             Manage payroll and employee rewards
-          </p>
+            </p>
         </div>
 
         {/* Actions */}
@@ -1240,14 +1247,1072 @@ const EmployeeMeritCard = ({
   );
 };
 
+const TeamBudgets = ({ teams }: { teams: Team[] }) => {
+  return (
+    <div style={{
+      backgroundColor: colors.surface,
+      padding: spacing.lg,
+      borderRadius: '16px',
+      border: `1px solid ${colors.border}`
+    }}>
+      <h3 style={{
+        fontSize: typography.fontSize.lg,
+        fontWeight: typography.fontWeight.bold,
+        color: colors.text.primary,
+        margin: '0 0 16px 0'
+      }}>
+        Team Budgets
+      </h3>
+
+      <div style={{
+        display: 'flex',
+        gap: spacing.md,
+        overflowX: 'auto',
+        paddingBottom: spacing.sm,
+        // Hide scrollbar but keep functionality
+        msOverflowStyle: 'none',
+        scrollbarWidth: 'none',
+        '&::-webkit-scrollbar': {
+          display: 'none'
+        }
+      }}>
+        {teams.map((team, index) => (
+          <div key={team.id} style={{ display: 'flex', flexDirection: 'column', gap: spacing.sm }}>
+            {/* Team Budget Card */}
+            <div style={{
+              backgroundColor: colors.surface,
+              padding: spacing.md,
+              borderRadius: '12px',
+              border: `1px solid ${colors.border}`,
+              minWidth: '140px',
+              flexShrink: 0
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs,
+                marginBottom: spacing.sm
+              }}>
+                <div style={{
+                  width: '8px',
+                  height: '8px',
+                  backgroundColor: team.color,
+                  borderRadius: '50%'
+                }}></div>
+                <h5 style={{
+                  fontSize: typography.fontSize.xs,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  margin: 0,
+                  flex: 1
+                }}>
+                  {team.name}
+                </h5>
+              </div>
+
+              <div>
+                <p style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.bold,
+                  color: colors.text.primary,
+                  margin: '0 0 2px 0',
+                  lineHeight: 1
+                }}>
+                  ${Number(team.budget) / 1e18}
+                </p>
+                <p style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  margin: 0
+                }}>
+                  Available Budget
+                </p>
+              </div>
+            </div>
+
+            {/* Payroll Positions */}
+            {team.payrollPositions?.map((position, posIndex) => (
+              <PayrollPositionCard
+                key={`${team.id}-${posIndex}`}
+                payrollId={position.payrollId}
+                positionIndex={position.positionIndex}
+                teamName={team.name}
+                teamColor={team.color}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const PayrollInfoPopup = ({ 
+  isOpen, 
+  onClose, 
+  payroll 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  payroll: {
+    payrollId: bigint;
+    positionIndex: bigint;
+    amount: bigint;
+    isActive: boolean;
+  } | null;
+}) => {
+  // Usar la dirección del contrato desplegado
+  const contractAddress = "0x8861eD313bd3548C160Cd66d305957A418CC4E8A" as `0x${string}`;
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const positionInfoArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId y positionIndex sean bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    const positionIndex = typeof payroll.positionIndex === 'string' ? BigInt(payroll.positionIndex) : payroll.positionIndex;
+    return [payrollId, positionIndex] as const;
+  }, [payroll, contractAddress]);
+
+  const { data: positionInfo, isLoading: isLoadingPositionInfo } = useReadContract({
+    address: contractAddress,
+    abi: payrollContractABI,
+    functionName: 'getPositionInfo',
+    args: positionInfoArgs,
+    query: {
+      enabled: !!positionInfoArgs && !!contractAddress
+    }
+  });
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const payrollInfoArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId sea bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    return [payrollId] as const;
+  }, [payroll, contractAddress]);
+
+  const { data: payrollInfoData, isLoading: isLoadingPayrollInfo } = useReadContract({
+    address: contractAddress,
+    abi: payrollContractABI,
+    functionName: 'getPayrollInfo',
+    args: payrollInfoArgs,
+    query: {
+      enabled: !!payrollInfoArgs && !!contractAddress
+    }
+  });
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const beneficiariesArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId sea bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    return [payrollId] as const;
+  }, [payroll, contractAddress]);
+
+  const { data: beneficiariesData, isLoading: isLoadingBeneficiaries } = useReadContract({
+    address: contractAddress,
+    abi: payrollContractABI,
+    functionName: 'getPayrollBeneficiaries',
+    args: beneficiariesArgs,
+    query: {
+      enabled: !!beneficiariesArgs && !!contractAddress
+    }
+  });
+
+  // ... rest of the code ...
+
+  // Si no hay contractAddress, mostrar un mensaje de error
+  if (!contractAddress) {
+    return (
+      <div style={{
+        padding: spacing.lg,
+        backgroundColor: colors.error,
+        color: 'white',
+        borderRadius: '8px',
+        textAlign: 'center'
+      }}>
+        Error: Contract address is not configured. Please check your environment variables.
+      </div>
+    );
+  }
+
+  if (!isOpen || !payroll) return null;
+
+  const formatDate = (timestamp: bigint) => {
+    const date = new Date(Number(timestamp) * 1000);
+    return date.toLocaleString();
+  };
+
+  const calculateProgress = () => {
+    if (!payrollInfoData) return 0;
+    const [_, __, startTime, endTime] = payrollInfoData as [bigint, bigint, bigint, bigint, bigint, boolean];
+    const now = BigInt(Math.floor(Date.now() / 1000));
+    if (now <= startTime) return 0;
+    if (now >= endTime) return 100;
+    return Number((now - startTime) * 100n / (endTime - startTime));
+  };
+
+  const progress = calculateProgress();
+
+  const [
+    pool,
+    _positionId,
+    totalAmount,
+    availableAmount,
+    totalRewardsData,
+    claimedRewardsData,
+    isActive
+  ] = positionInfo ? (positionInfo as [
+    `0x${string}`,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    boolean
+  ]) : [undefined, undefined, undefined, undefined, undefined, undefined, undefined];
+
+  const [
+    _positionIndex,
+    _amount,
+    startTime,
+    endTime,
+    claimedAmount,
+    _isActive
+  ] = payrollInfoData ? (payrollInfoData as [
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    bigint,
+    boolean
+  ]) : [undefined, undefined, undefined, undefined, undefined, undefined];
+
+  return (
+    <>
+      {/* Overlay */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        zIndex: 2000,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: spacing.lg
+      }}>
+        {/* Modal */}
+        <div style={{
+          backgroundColor: 'white',
+          borderRadius: '16px',
+          maxWidth: '800px',
+          width: '100%',
+          maxHeight: 'calc(100vh - 64px)',
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          boxShadow: `0 20px 40px rgba(0, 0, 0, 0.15)`,
+          overflow: 'auto'
+        }}>
+          {/* Header */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: spacing.xl,
+            paddingBottom: spacing.md,
+            borderBottom: `1px solid ${colors.border}`,
+            flexShrink: 0
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: spacing.sm
+            }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                backgroundColor: colors.primary,
+                borderRadius: '8px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                <Calendar size={18} color="white" strokeWidth={2.5} />
+              </div>
+              <h2 style={{
+                fontSize: typography.fontSize.xl,
+                fontWeight: typography.fontWeight.bold,
+                color: colors.text.primary,
+                margin: 0
+              }}>
+                Payroll Schedule Details
+              </h2>
+            </div>
+            <button
+              onClick={onClose}
+              style={{
+                backgroundColor: 'transparent',
+                border: 'none',
+                color: colors.text.secondary,
+                cursor: 'pointer',
+                padding: spacing.xs,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div style={{
+            padding: spacing.xl,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: spacing.lg
+          }}>
+            {isLoadingPositionInfo || isLoadingPayrollInfo || isLoadingBeneficiaries ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: spacing.xl,
+                gap: spacing.sm
+              }}>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  border: `2px solid ${colors.light}`,
+                  borderTop: `2px solid ${colors.primary}`,
+                  borderRadius: '50%',
+                  animation: 'spin 1s linear infinite'
+                }}></div>
+                <span style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary
+                }}>
+                  Loading payroll information...
+                </span>
+              </div>
+            ) : (
+              <>
+                {/* Payroll Schedule Info */}
+                <div style={{
+                  backgroundColor: colors.surface,
+                  padding: spacing.lg,
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.border}`
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: spacing.md
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: spacing.sm
+                    }}>
+                      <div style={{
+                        fontSize: typography.fontSize.base,
+                        fontWeight: typography.fontWeight.semibold,
+                        color: colors.text.primary,
+                        fontFamily: 'monospace'
+                      }}>
+                        Payroll Schedule #{payroll.payrollId.toString()}
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: typography.fontSize.sm,
+                      color: payroll.isActive ? colors.success : colors.text.secondary,
+                      fontWeight: typography.fontWeight.medium,
+                      backgroundColor: payroll.isActive ? `${colors.success}15` : colors.light,
+                      padding: `${spacing.xs} ${spacing.sm}`,
+                      borderRadius: '6px'
+                    }}>
+                      {payroll.isActive ? 'Active' : 'Inactive'}
+                    </div>
+                  </div>
+
+                  {/* Payroll Schedule Details */}
+                  <div style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: spacing.md,
+                    marginBottom: spacing.md
+                  }}>
+                    <div>
+                      <div style={{
+                        fontSize: typography.fontSize.xs,
+                        color: colors.text.secondary,
+                        marginBottom: spacing.xs
+                      }}>
+                        Start Date
+                      </div>
+                      <div style={{
+                        fontSize: typography.fontSize.sm,
+                        color: colors.text.primary
+                      }}>
+                        {startTime ? formatDate(startTime) : 'Not set'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{
+                        fontSize: typography.fontSize.xs,
+                        color: colors.text.secondary,
+                        marginBottom: spacing.xs
+                      }}>
+                        End Date
+                      </div>
+                      <div style={{
+                        fontSize: typography.fontSize.sm,
+                        color: colors.text.primary
+                      }}>
+                        {endTime ? formatDate(endTime) : 'Not set'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{
+                        fontSize: typography.fontSize.xs,
+                        color: colors.text.secondary,
+                        marginBottom: spacing.xs
+                      }}>
+                        Position Index
+                      </div>
+                      <div style={{
+                        fontSize: typography.fontSize.sm,
+                        fontWeight: typography.fontWeight.medium,
+                        color: colors.text.primary
+                      }}>
+                        #{payroll.positionIndex.toString()}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payroll Progress */}
+                  <div style={{
+                    marginTop: spacing.sm,
+                    height: '4px',
+                    backgroundColor: colors.border,
+                    borderRadius: '2px',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{
+                      width: `${progress}%`,
+                      height: '100%',
+                      backgroundColor: colors.primary,
+                      transition: 'width 0.3s ease'
+                    }}></div>
+                  </div>
+                  <div style={{
+                    fontSize: typography.fontSize.xs,
+                    color: colors.text.secondary,
+                    textAlign: 'right',
+                    marginTop: spacing.xs
+                  }}>
+                    {progress}% completed
+                  </div>
+                </div>
+
+                {/* Beneficiaries Information */}
+                <div style={{
+                  backgroundColor: colors.surface,
+                  padding: spacing.lg,
+                  borderRadius: '12px',
+                  border: `1px solid ${colors.border}`
+                }}>
+                  <div style={{
+                    fontSize: typography.fontSize.sm,
+                    fontWeight: typography.fontWeight.medium,
+                    color: colors.text.primary,
+                    marginBottom: spacing.md,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: spacing.xs
+                  }}>
+                    <Users size={16} />
+                    Beneficiaries ({beneficiariesData?.length || 0})
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: spacing.md
+                  }}>
+                    {beneficiariesData?.length > 0 ? (
+                      beneficiariesData.map((beneficiary) => (
+                        <div
+                          key={beneficiary}
+                          style={{
+                            padding: spacing.md,
+                            backgroundColor: colors.light,
+                            borderRadius: '8px',
+                            border: `1px solid ${colors.border}`
+                          }}
+                        >
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: spacing.sm,
+                            marginBottom: spacing.sm
+                          }}>
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: `${colors.primary}15`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <User size={16} color={colors.primary} />
+                            </div>
+                            <div style={{
+                              fontSize: typography.fontSize.sm,
+                              fontFamily: 'monospace',
+                              color: colors.text.primary,
+                              wordBreak: 'break-all'
+                            }}>
+                              {beneficiary}
+                            </div>
+                          </div>
+                          <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: spacing.sm
+                          }}>
+                            <div>
+                              <div style={{
+                                fontSize: typography.fontSize.xs,
+                                color: colors.text.secondary,
+                                marginBottom: spacing.xs
+                              }}>
+                                Amount
+                              </div>
+                              <div style={{
+                                fontSize: typography.fontSize.sm,
+                                fontWeight: typography.fontWeight.medium,
+                                color: colors.text.primary
+                              }}>
+                                {Number(payroll.amount) / 1e18} DAI
+                              </div>
+                            </div>
+                            <div>
+                              <div style={{
+                                fontSize: typography.fontSize.xs,
+                                color: colors.text.secondary,
+                                marginBottom: spacing.xs
+                              }}>
+                                Status
+                              </div>
+                              <div style={{
+                                fontSize: typography.fontSize.sm,
+                                color: colors.text.primary
+                              }}>
+                                {payroll.isActive ? 'Active' : 'Inactive'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div style={{
+                        padding: spacing.md,
+                        backgroundColor: colors.light,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`,
+                        textAlign: 'center',
+                        color: colors.text.secondary
+                      }}>
+                        No beneficiaries found for this payroll
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Rewards Information */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: spacing.md
+                }}>
+                  <div style={{
+                    padding: spacing.md,
+                    backgroundColor: colors.surface,
+                    borderRadius: '8px',
+                    border: `1px solid ${colors.border}`
+                  }}>
+                    <div style={{
+                      fontSize: typography.fontSize.sm,
+                      color: colors.text.secondary,
+                      marginBottom: spacing.xs
+                    }}>
+                      Total Rewards
+                    </div>
+                    <div style={{
+                      fontSize: typography.fontSize.lg,
+                      fontWeight: typography.fontWeight.semibold,
+                      color: colors.text.primary
+                    }}>
+                      {positionInfo ? (Number(positionInfo[4]) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: spacing.md,
+                    backgroundColor: colors.surface,
+                    borderRadius: '8px',
+                    border: `1px solid ${colors.border}`
+                  }}>
+                    <div style={{
+                      fontSize: typography.fontSize.sm,
+                      color: colors.text.secondary,
+                      marginBottom: spacing.xs
+                    }}>
+                      Claimed Rewards
+                    </div>
+                    <div style={{
+                      fontSize: typography.fontSize.lg,
+                      fontWeight: typography.fontWeight.semibold,
+                      color: colors.text.primary
+                    }}>
+                      {positionInfo ? (Number(positionInfo[5]) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
+                    </div>
+                  </div>
+                  <div style={{
+                    padding: spacing.md,
+                    backgroundColor: colors.surface,
+                    borderRadius: '8px',
+                    border: `1px solid ${colors.border}`
+                  }}>
+                    <div style={{
+                      fontSize: typography.fontSize.sm,
+                      color: colors.text.secondary,
+                      marginBottom: spacing.xs
+                    }}>
+                      Available Rewards
+                    </div>
+                    <div style={{
+                      fontSize: typography.fontSize.lg,
+                      fontWeight: typography.fontWeight.semibold,
+                      color: colors.primary
+                    }}>
+                      {positionInfo ? ((Number(positionInfo[4]) - Number(positionInfo[5])) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+function PayrollScheduleDetails({ payrolls, isLoading, error, onRefresh }: { payrolls: PayrollCompleteInfo[], isLoading: boolean, error: Error | null, onRefresh: () => void }) {
+  if (isLoading) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: colors.text.secondary,
+        fontSize: typography.fontSize.sm
+      }}>
+        Loading payrolls...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.error,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: 'white',
+        fontSize: typography.fontSize.sm
+      }}>
+        Error loading payrolls: {error.message}
+      </div>
+    );
+  }
+
+  if (payrolls.length === 0) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: colors.text.secondary,
+        fontSize: typography.fontSize.sm
+      }}>
+        No active payrolls found
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.lg,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        marginTop: spacing.xl
+      }}
+    >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.md
+      }}>
+        <h2 style={{
+          fontSize: typography.fontSize.xl,
+          fontWeight: typography.fontWeight.bold,
+          color: colors.text.primary,
+          margin: 0
+        }}>
+          Payroll Schedule Details
+        </h2>
+        <button
+          onClick={onRefresh}
+          style={{
+            backgroundColor: colors.light,
+            color: colors.text.secondary,
+            border: 'none',
+            padding: `${spacing.xs} ${spacing.sm}`,
+            borderRadius: '6px',
+            fontSize: typography.fontSize.xs,
+            fontWeight: typography.fontWeight.medium,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.xs
+          }}
+        >
+          <Info size={14} />
+          Refresh
+        </button>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: spacing.md
+      }}>
+        {payrolls.map((payroll, index) => (
+          <div
+            key={payroll.payrollId.toString()}
+            style={{
+              backgroundColor: colors.surface,
+              padding: spacing.lg,
+              borderRadius: '12px',
+              border: `1px solid ${colors.border}`
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.md
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.base,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  fontFamily: 'monospace'
+                }}>
+                  Payroll Schedule #{index + 1}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: payroll.isActive ? colors.success : colors.text.secondary,
+                  fontWeight: typography.fontWeight.medium,
+                  backgroundColor: payroll.isActive ? `${colors.success}15` : colors.light,
+                  padding: `${spacing.xs} ${spacing.sm}`,
+                  borderRadius: '4px'
+                }}>
+                  {payroll.isActive ? 'Active' : 'Inactive'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: spacing.md,
+              marginBottom: spacing.md
+            }}>
+              <div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Start Date
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.primary
+                }}>
+                  {new Date(Number(payroll.unlockTime) * 1000).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Position Index
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.primary
+                }}>
+                  #0
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: spacing.md
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.primary,
+                marginBottom: spacing.sm,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs
+              }}>
+                <Users size={16} />
+                Beneficiaries ({payroll.beneficiaries.length})
+              </div>
+
+              {payroll.beneficiaries.length === 0 ? (
+                <div style={{
+                  padding: spacing.md,
+                  backgroundColor: colors.light,
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  color: colors.text.secondary
+                }}>
+                  No beneficiaries found for this payroll
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: spacing.sm
+                }}>
+                  {payroll.beneficiaries.map((beneficiary, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: spacing.md,
+                        backgroundColor: colors.light,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        marginBottom: spacing.sm
+                      }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: `${colors.primary}15`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <User size={16} color={colors.primary} />
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          fontFamily: 'monospace',
+                          color: colors.text.primary,
+                          wordBreak: 'break-all'
+                        }}>
+                          {beneficiary.beneficiary}
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: spacing.sm
+                      }}>
+                        <div>
+                          <div style={{
+                            fontSize: typography.fontSize.xs,
+                            color: colors.text.secondary,
+                            marginBottom: spacing.xs
+                          }}>
+                            Amount
+                          </div>
+                          <div style={{
+                            fontSize: typography.fontSize.sm,
+                            fontWeight: typography.fontWeight.medium,
+                            color: colors.text.primary
+                          }}>
+                            {Number(beneficiary.amount) / 1e18} DAI
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{
+                            fontSize: typography.fontSize.xs,
+                            color: colors.text.secondary,
+                            marginBottom: spacing.xs
+                          }}>
+                            Claimed
+                          </div>
+                          <div style={{
+                            fontSize: typography.fontSize.sm,
+                            color: colors.text.primary
+                          }}>
+                            {Number(beneficiary.claimedAmount) / 1e18} DAI
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: spacing.md,
+              marginTop: spacing.lg
+            }}>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Total Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary
+                }}>
+                  {Number(payroll.totalAmount) / 1e18} DAI
+                </div>
+              </div>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Claimed Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary
+                }}>
+                  {Number(payroll.beneficiaries.reduce((sum, b) => sum + b.claimedAmount, 0n)) / 1e18} DAI
+                </div>
+              </div>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Available Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.primary
+                }}>
+                  {Number(payroll.totalAmount - payroll.beneficiaries.reduce((sum, b) => sum + b.claimedAmount, 0n)) / 1e18} DAI
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   const [treasuryBalance, setTreasuryBalance] = useState<number>(0);
+  const [selectedPayroll, setSelectedPayroll] = useState<PayrollCompleteInfo | null>(null);
   const [teamsData, setTeamsData] = useState<TeamsAndEmployeesData | undefined>();
   const [balance, setBalance] = useState<TreasuryBalance | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
-
-  // Get wallet info from Dynamic login for Blockscout API calls
   const { address: walletAddress, chainId } = useWalletInfo();
+  
+  // Use the hook to get payroll data
+  const { 
+    payrolls, 
+    isLoading: isLoadingPayrolls, 
+    error: payrollsError
+  } = useCompanyLastPayrolls(walletAddress, { maxPayrolls: 3 });
+
+  // Debug logs
+  useEffect(() => {
+    console.log('CompanyDashboard - Wallet Info:', {
+      walletAddress,
+      chainId,
+      isConnected: !!walletAddress
+    });
+  }, [walletAddress, chainId]);
+
+  // Debug logs for payroll data
+  useEffect(() => {
+    console.log('CompanyDashboard - Payroll Data:', {
+      payrolls,
+      isLoadingPayrolls,
+      error: payrollsError?.message,
+      totalPayrolls: payrolls.length
+    });
+  }, [payrolls, isLoadingPayrolls, payrollsError]);
 
   // Fetch teams and employees data + balance
   useEffect(() => {
@@ -1260,7 +2325,6 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
       ]).then(([teamsData, balanceData]) => {
         setTeamsData(teamsData);
         setBalance(balanceData);
-        setTreasuryBalance(balanceData.amount);
         setIsDataLoading(false);
       }).catch((error) => {
         console.error('Error fetching company dashboard data:', error);
@@ -1269,18 +2333,17 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
     }
   }, [isLoading, walletAddress, chainId]);
 
-  const handleAmountUpdate = (newAmount: number) => {
-    setTreasuryBalance(newAmount);
-  };
-
   const handlePaymentComplete = (totalPaid: number) => {
     // Deduct the payment from treasury balance
     setTreasuryBalance(prev => prev - totalPaid);
   };
 
   return (
-    <div>
-      {/* All Cards in One Row */}
+    <div style={{
+      padding: spacing.xl,
+      maxWidth: '1200px',
+      margin: '0 auto'
+    }}>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
@@ -1290,18 +2353,174 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
         <CurrencyAmountCard 
           isLoading={isLoading || isDataLoading} 
           currentAmount={treasuryBalance}
-          onAmountUpdate={handleAmountUpdate}
+          onAmountUpdate={(newAmount) => setTreasuryBalance(newAmount)}
           teamsData={teamsData}
           walletAddress={walletAddress ?? undefined}
           chainId={chainId ?? undefined}
           balance={balance}
         />
-        <ActionsCard 
-          isLoading={isLoading || isDataLoading}
-          onPaymentComplete={handlePaymentComplete}
-          currentBalance={treasuryBalance}
-          teams={teamsData?.teams || []}
-        />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.xl }}>
+          <ActionsCard 
+            isLoading={isLoading || isDataLoading}
+            onPaymentComplete={handlePaymentComplete}
+            currentBalance={treasuryBalance}
+            teams={teamsData?.teams || []}
+          />
+          
+          {/* Payrolls List */}
+          <div 
+            className="main-block-gradient"
+            style={{
+              backgroundColor: 'white',
+              padding: spacing.lg,
+              borderRadius: '16px',
+              border: `1px solid ${colors.border}`,
+              boxShadow: `0 4px 12px ${colors.shadow}`
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md
+            }}>
+              <h3 style={{
+                fontSize: typography.fontSize.base,
+                fontWeight: typography.fontWeight.semibold,
+                color: colors.text.primary,
+                margin: 0
+              }}>
+                Last 3 Payrolls
+              </h3>
+            </div>
+
+            {isLoadingPayrolls ? (
+              <div style={{
+                padding: spacing.sm,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: colors.text.secondary,
+                fontSize: typography.fontSize.sm
+              }}>
+                Loading payrolls...
+              </div>
+            ) : payrollsError ? (
+              <div style={{
+                padding: spacing.sm,
+                backgroundColor: colors.error,
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: 'white',
+                fontSize: typography.fontSize.sm
+              }}>
+                Error loading payrolls: {payrollsError.message}
+              </div>
+            ) : !payrolls.length ? (
+              <div style={{
+                padding: spacing.sm,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: colors.text.secondary,
+                fontSize: typography.fontSize.sm
+              }}>
+                No payrolls found for this company
+              </div>
+            ) : (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing.sm
+              }}>
+                {payrolls.slice(-3).reverse().map((payroll) => (
+                  <div
+                    key={`${payroll.payrollId}-${payroll.positionIndex}`}
+                    style={{
+                      backgroundColor: colors.surface,
+                      padding: spacing.md,
+                      borderRadius: '8px',
+                      border: `1px solid ${colors.border}`
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.md
+                      }}>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          fontWeight: typography.fontWeight.medium,
+                          color: colors.text.primary,
+                          fontFamily: 'monospace',
+                          backgroundColor: colors.light,
+                          padding: `${spacing.xs} ${spacing.sm}`,
+                          borderRadius: '4px'
+                        }}>
+                          #{payroll.payrollId.toString()}
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          color: colors.text.secondary,
+                          fontFamily: 'monospace'
+                        }}>
+                          Pos #{payroll.positionIndex.toString()}
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          fontWeight: typography.fontWeight.semibold,
+                          color: colors.text.primary
+                        }}>
+                          ${Number(payroll.amount) / 1e18}
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm
+                      }}>
+                        <div style={{
+                          fontSize: typography.fontSize.xs,
+                          color: payroll.isActive ? colors.success : colors.text.secondary,
+                          fontWeight: typography.fontWeight.medium,
+                          backgroundColor: payroll.isActive ? `${colors.success}15` : colors.light,
+                          padding: `${spacing.xs} ${spacing.sm}`,
+                          borderRadius: '4px'
+                        }}>
+                          {payroll.isActive ? 'Active' : 'Inactive'}
+                        </div>
+                        <button
+                          onClick={() => setSelectedPayroll(payroll)}
+                          style={{
+                            backgroundColor: colors.light,
+                            color: colors.text.primary,
+                            border: 'none',
+                            padding: `${spacing.xs} ${spacing.sm}`,
+                            borderRadius: '4px',
+                            fontSize: typography.fontSize.xs,
+                            fontWeight: typography.fontWeight.medium,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: spacing.xs
+                          }}
+                        >
+                          <Info size={12} />
+                          Info
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
         <EmployeeMeritCard 
           isLoading={isLoading || isDataLoading}
           teamsData={teamsData}
@@ -1316,21 +2535,25 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
           showAllTransactions={true}
         />
       </div>
+
+      {/* Payroll Info Popup */}
+      <PayrollInfoPopup
+        isOpen={selectedPayroll !== null}
+        onClose={() => setSelectedPayroll(null)}
+        payroll={selectedPayroll}
+      />
+
+      {/* Payroll Schedule Section */}
+      <div style={{
+        marginTop: spacing.xl
+      }}>
+        <PayrollScheduleDetails
+          payrolls={payrolls}
+          isLoading={isLoadingPayrolls}
+          error={payrollsError}
+          onRefresh={() => {}} // Empty function since we don't need refresh anymore
+        />
+      </div>
     </div>
   );
 }
-
-// Add CSS for spinner animation (moved to proper place)
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  `;
-  if (!document.head.querySelector('style[data-animation="spin"]')) {
-    style.setAttribute('data-animation', 'spin');
-    document.head.appendChild(style);
-  }
-} 
