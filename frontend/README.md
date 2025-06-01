@@ -1,136 +1,146 @@
-# Vank Cliff
+# VankCliff Frontend
 
-A comprehensive crypto portfolio management platform built with Next.js 15, React 19, and Dynamic.xyz for Web3 authentication.
+A modern, blockchain-powered payroll and employee management system built with Next.js, React, and Web3 technologies.
 
-## Features
+## 🏗️ Project Overview
 
-- 🔐 **Web3 Authentication** - Secure login with 500+ wallet support via Dynamic.xyz
-- 📱 **Responsive Design** - Mobile-first approach with hamburger menu on mobile
-- 🎨 **Centralized Theming** - Easy color customization from a single source
-- 📊 **Portfolio Management** - Track your crypto holdings and performance
-- ⚡ **Loading States** - Comprehensive loading indicators throughout the app
-- 🔄 **Real-time Data** - Live updates for portfolio and market data
-- 🌈 **Beautiful UI** - Modern design with Helvetica Neue typography
+VankCliff is a decentralized application (dApp) that enables companies to manage payroll, employee rewards, and treasury operations on the blockchain. The frontend provides an intuitive interface for both companies and employees to interact with smart contracts and track their financial activities.
 
-## Tech Stack
+### Key Features
 
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Authentication**: Dynamic.xyz Web3 SDK
-- **Styling**: CSS-in-JS with centralized theme system
-- **Font**: Helvetica Neue
+- **Company Dashboard**: Treasury management, payroll creation, and employee oversight
+- **Individual Dashboard**: Personal payroll tracking, transaction history, and merit rewards
+- **Blockchain Integration**: Direct smart contract interactions using Wagmi and Viem
+- **Real-time Data**: Live blockchain data fetching and transaction monitoring
+- **Merit System**: Employee recognition system integrated with Blockscout API
+- **Responsive Design**: Mobile-first approach with modern UI/UX
 
-## Setup Instructions
+## 🚀 Tech Stack
 
-### 1. Clone the repository
+### Core Technologies
+- **Framework**: Next.js 15.2.4 (App Router)
+- **Language**: TypeScript 5.7.2
+- **Frontend**: React 19.0.0
+- **Styling**: CSS-in-JS with custom theme system
+
+### Blockchain & Web3
+- **Wallet Connection**: Dynamic Labs SDK
+- **Contract Interactions**: Wagmi 2.15.4 + Viem 2.30.5
+- **Smart Contract ABIs**: Custom payroll contract integration
+
+### UI & Design
+- **Icons**: Lucide React
+- **Layout**: CSS Grid and Flexbox
+- **Theme**: Custom design system with consistent colors, typography, and spacing
+- **Responsive**: Mobile-first responsive design
+
+### External APIs
+- **Blockscout API**: Transaction history and merit system
+- **Price APIs**: Real-time cryptocurrency pricing
+- **Custom Backend**: Company and employee data management
+
+## 🛠️ Installation & Setup
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Git
+
+### Installation Steps
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd vank-cliff/frontend
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Environment Setup**
+   Create a `.env.local` file in the frontend directory:
+   ```env
+   # Add your environment variables here
+   NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=your_dynamic_environment_id
+   NEXT_PUBLIC_CONTRACT_ADDRESS=your_contract_address
+   NEXT_PUBLIC_BLOCKSCOUT_API_URL=your_blockscout_api_url
+   ```
+
+4. **Development Server**
+   ```bash
+   npm run dev
+   ```
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## 📜 Available Scripts
 
 ```bash
-git clone https://github.com/your-username/vank-cliff.git
-cd vank-cliff
+# Development
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+
+# Deployment
+npm run predeploy    # Pre-deployment build
+npm run deploy       # Deploy to GitHub Pages
 ```
 
-### 2. Install dependencies
+## 🔧 Configuration
 
-```bash
-npm install
+### Next.js Configuration
+The application is configured for static export with GitHub Pages deployment support:
+
+```javascript
+// next.config.js
+const isProd = process.env.NODE_ENV === 'production';
+const nextConfig = {
+  reactStrictMode: true,
+  images: { unoptimized: true },
+  assetPrefix: isProd ? '/vank-cliff/' : '',
+  basePath: isProd ? '/vank-cliff' : '',
+  output: 'export'
+};
 ```
 
-### 3. Configure Dynamic.xyz Authentication
+### TypeScript Configuration
+Strict TypeScript configuration with Next.js optimizations and path aliases.
 
-1. Go to [Dynamic.xyz Dashboard](https://app.dynamic.xyz/dashboard/developer)
-2. Create a new project or use an existing one
-3. Copy your Environment ID
-4. Create a `.env.local` file in the project root:
+## 🎨 Design System
 
-```bash
-# Dynamic.xyz Configuration
-NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID=your-environment-id-here
-```
+### Colors
+- **Primary**: #6F2DBD (Purple)
+- **Secondary**: #A663CC (Light Purple)
+- **Accent**: #B298DC (Lavender)
+- **Success**: #10B981 (Green)
+- **Error**: #EF4444 (Red)
 
-### 4. Run the development server
+## 🔌 API Integrations
 
-```bash
-npm run dev
-```
+### Blockscout API
+- Transaction history tracking
+- Merit system integration
+- Real-time blockchain data
 
-Open [http://localhost:3000](http://localhost:3000) to view the application.
+### Custom Backend APIs
+- Company and employee management
+- Payroll processing
+- Treasury balance tracking
 
-## Project Structure
+### Price APIs
+- Real-time cryptocurrency pricing
+- Multi-currency support
 
-```
-src/
-├── app/                    # Next.js app directory
-│   ├── layout.tsx         # Root layout with Dynamic provider
-│   ├── page.tsx           # Main page with auth guard
-│   └── globals.css        # Global styles
-├── components/            # React components
-│   ├── AppBar.tsx         # Top navigation bar
-│   ├── AuthGuard.tsx      # Authentication wrapper
-│   ├── LoadingCard.tsx    # Loading state component
-│   ├── LoadingSpinner.tsx # Spinner component
-│   ├── LoginPage.tsx      # Login/auth page
-│   ├── MainContent.tsx    # Main content area
-│   └── Sidebar.tsx        # Navigation sidebar
-├── constants/             # App constants
-│   └── app.ts             # Centralized app constants
-├── hooks/                 # Custom React hooks
-│   └── useResponsive.ts   # Mobile detection hook
-├── providers/             # Context providers
-│   └── DynamicProvider.tsx # Dynamic.xyz setup
-└── theme/                 # Theme configuration
-    └── colors.ts          # Centralized colors & typography
-```
+## 🚀 Deployment
 
-## Theme Customization
+### GitHub Pages
+The application is configured for GitHub Pages deployment:
 
-All theme colors are centralized in `src/theme/colors.ts`. Update the color palette here:
+1. Build the application: `npm run build`
+2. Deploy: `npm run deploy`
 
-```typescript
-export const colors = {
-  primary: '#6F2DBD',      // Main purple
-  secondary: '#A663CC',    // Light purple
-  accent: '#B298DC',       // Accent purple
-  light: '#B8D0EB',        // Light blue
-  mint: '#B9FAF8',         // Mint/cyan
-  // ... more colors
-}
-```
+## 📄 License
 
-## App Constants
-
-All app-related constants are centralized in `src/constants/app.ts`:
-
-```typescript
-export const APP_NAME = 'Vank Cliff'
-export const APP_DESCRIPTION = 'Advanced crypto portfolio management and trading platform'
-// ... more constants
-```
-
-## Authentication Flow
-
-1. **Initial Load**: Shows loading screen while Dynamic SDK initializes
-2. **Unauthenticated**: Displays login page with wallet connection options
-3. **Authenticated**: Shows main app with user wallet info in header
-4. **Data Loading**: Individual components show loading states while fetching data
-
-## Development
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
-- `npm run lint` - Run ESLint
-
-## Environment Variables
-
-- `NEXT_PUBLIC_DYNAMIC_ENVIRONMENT_ID` - Your Dynamic.xyz environment ID (required)
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## License
-
-MIT License - see LICENSE file for details. 
+This project is licensed under the MIT License - see the LICENSE file for details.
