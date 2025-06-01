@@ -330,12 +330,17 @@ export const fetchIndividualBalance = async (
       client: publicClient
     });
 
-    // Get token info and balance
-    const [decimals, symbol, balance] = await Promise.all([
+    // Get token info and balance with proper type assertions
+    const [decimalsResult, symbolResult, balanceResult] = await Promise.all([
       tokenContract.read.decimals(),
       tokenContract.read.symbol(),
       tokenContract.read.balanceOf([address as `0x${string}`])
     ]);
+
+    // Type cast the results properly
+    const decimals = Number(decimalsResult);
+    const symbol = symbolResult as string;
+    const balance = balanceResult as bigint;
 
     // Convert balance to token units
     const tokenAmount = Number(balance) / Math.pow(10, decimals);
@@ -881,31 +886,39 @@ export const processPayrollPayments = async (
       throw new Error('Pool address not configured');
     }
 
-    // 1. Add liquidity
-    const amount = BigInt(totalAmount * 1e18);
-    await addLiquidity(
+    // Get company address (using first employee's address as company for demo)
+    const companyAddress = employees[0]?.walletAddress as `0x${string}`;
+    if (!companyAddress) {
+      throw new Error('No company address available');
+    }
+
+    // 1. Add liquidity with correct signature: (companyAddr, poolAddr, amountA, amountB)
+    const amount = BigInt(Math.floor(totalAmount * 1e18));
+    const liquidityResult = await addLiquidity(
+      companyAddress,
       poolAddress,
       amount,
       amount
     );
 
-    // 2. Create payroll
+    // 2. Create payroll with correct signature: (payrollId, companyAddr, positionIndex, beneficiaries, amounts, startTime, endTime)
     const payrollId = BigInt(Date.now());
     const startTime = BigInt(Math.floor(Date.now() / 1000));
     const endTime = startTime + BigInt(30 * 24 * 60 * 60); // 30 days from now
 
     const receipt = await createPayroll(
       payrollId,
-      BigInt(0), // positionIndex
+      companyAddress,
+      liquidityResult.positionIndex, // Use the position index from addLiquidity
       employees.map(e => e.walletAddress as `0x${string}`),
-      employees.map(e => BigInt(e.salary * 1e18)),
+      employees.map(e => BigInt(Math.floor(e.salary * 1e18))),
       startTime,
       endTime
     );
 
     return {
       success: true,
-      transactionId: receipt.transactionHash
+      transactionId: receipt // receipt is already a transaction hash string
     };
 
   } catch (error) {
