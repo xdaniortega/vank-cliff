@@ -321,8 +321,8 @@ export default function AppBar({ onMenuToggle, isMobile }: AppBarProps) {
         alignItems: 'center',
         gap: spacing.md
       }}>
-        {/* Network Selector - Only show for company users */}
-        {user && userIsCompany && <NetworkSelector />}
+        {/* Network Selector - Show for all users */}
+        {user && <NetworkSelector />}
 
         {/* User wallet address */}
         {user && (

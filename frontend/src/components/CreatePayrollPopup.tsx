@@ -177,6 +177,9 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
     const tokenASymbol = String(tokenAInfo);
     const tokenBSymbol = String(tokenBInfo);
 
+    // Use mock user address instead of selected employee's address
+    const mockUserAddress = '0x8FC05A14Aa2AA4d858E18733C9b9a73b2c8b6Ffd' as `0x${string}`;
+
     // Store all necessary data in a closure to ensure it's available throughout the async operation
     const payrollData = {
       startTimestamp: BigInt(startUnix),
@@ -185,7 +188,7 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
       amountTokenBInWei: BigInt(parseFloat(amountTokenB) * 1e18),
       tokenASymbol,
       tokenBSymbol,
-      employeeAddress: selectedEmployee.walletAddress as `0x${string}`,
+      employeeAddress: mockUserAddress, // Use mock user address instead of selectedEmployee.walletAddress
       employeeName: selectedEmployee.name
     };
 

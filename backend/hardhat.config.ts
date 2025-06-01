@@ -3,6 +3,8 @@ import "@nomicfoundation/hardhat-toolbox";
 import "@nomicfoundation/hardhat-foundry";
 import * as dotenv from "dotenv";
 import { EndpointId } from '@layerzerolabs/lz-definitions'
+import "@nomicfoundation/hardhat-verify";
+
 
 // Import tasks
 import "./tasks/payroll";
@@ -16,7 +18,8 @@ const config: HardhatUserConfig = {
       optimizer: {
         enabled: true,
         runs: 200
-      }
+      },
+      evmVersion: "paris"
     }
   },
   typechain: {
@@ -27,19 +30,15 @@ const config: HardhatUserConfig = {
     dontOverrideCompile: false
   },
   networks: {
-    hardhat: {
-      chainId: 31337,
-      forking: {
-        url: process.env.FLOW_EVM_RPC_URL || "",
-        blockNumber: process.env.BLOCK_NUMBER ? parseInt(process.env.BLOCK_NUMBER) : undefined
-      }
-    },
-    flow_evm: {
-      url: process.env.FLOW_EVM_RPC_URL || "https://mainnet.evm.nodes.onflow.org",
-      accounts: [process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY : ""],
+    'flow-evm': {
+      url: 'https://rpc.flowscan.org',
       chainId: 747,
-      gasPrice: 50000000000, // 50 gwei
-      gasMultiplier: 1.5
+      accounts: [process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY : ""],
+    },
+    'localhost': {
+      url: 'http://127.0.0.1:8545',
+      chainId: 31337,
+      accounts: [process.env.PRIVATE_KEY ? process.env.PRIVATE_KEY : ""],
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",
@@ -67,6 +66,34 @@ const config: HardhatUserConfig = {
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
+  },
+  etherscan: {
+    apiKey: {
+      // No se requiere API key para Blockscout
+      'flow-evm': "not-required",
+      'localhost': "not-required"
+    },
+    customChains: [
+      {
+        network: "flow-evm",
+        chainId: 747,
+        urls: {
+          apiURL: "https://eth.blockscout.com/api",
+          browserURL: "https://eth.blockscout.com"
+        }
+      },
+      {
+        network: "localhost",
+        chainId: 31337,
+        urls: {
+          apiURL: "http://localhost:4000/api", // Asumiendo que tienes un Blockscout local
+          browserURL: "http://localhost:4000"
+        }
+      }
+    ]
+  },
+  sourcify: {
+    enabled: false
   }
 };
 

@@ -20,9 +20,12 @@ import {
 
 import { CompanyLiquidityManager } from '../typechain-types';
 import { getContract } from 'viem';
-import { usePublicClient, useWalletClient } from 'viem';
+import { usePublicClient } from 'wagmi';
 import { usePayrollContract } from '../hooks/usePayrollContract';
-import { useWalletInfo } from '../contexts/WalletContext';
+import { useWalletInfo } from '../hooks/useWalletInfo';
+import { erc20Abi } from '../contracts/erc20Abi';
+import { CONTRACT_ADDRESSES, CHAIN_IDS } from '../contracts/addresses';
+import { convertTokenToUsdWithFallback } from './price-api';
 
 // Types and Interfaces
 export interface Employee {
@@ -289,7 +292,7 @@ export const fetchNetworkInfo = async (
 };
 
 /**
- * Fetches individual user balance using Blockscout API
+ * Fetches individual user balance using ERC20 contracts
  * @param address - The user's wallet address (optional, falls back to mock data)
  * @param chainId - The blockchain chain ID (optional, defaults to '1')
  * @returns Promise<IndividualBalance>
@@ -303,42 +306,68 @@ export const fetchIndividualBalance = async (
     return new Promise((resolve) => {
       setTimeout(() => {
         resolve({
-          amount: 8450.75,
+          amount: 0.00,
           currency: 'USD',
           lastUpdated: new Date()
         });
-      }, 1500);
+      }, 1000);
     });
   }
 
   try {
-    // Fetch real balance from Blockscout
-    const balanceData = await fetchAccountBalance(address, chainId);
+    // Get token address based on chain ID
+    let tokenAddress: string;
+    const chainIdNum = parseInt(chainId);
     
-    if (balanceData) {
-      const usdAmount = await convertNativeTokenToUsd(balanceData.balance, balanceData.symbol);
-      
-      return {
-        amount: usdAmount,
-        currency: 'USD',
-        nativeAmount: balanceData.balance,
-        nativeSymbol: balanceData.symbol,
-        lastUpdated: new Date()
-      };
-    } else {
-      // Fallback to mock data if Blockscout call fails
-      console.warn('Failed to fetch balance from Blockscout, using mock data');
-      return {
-        amount: 8450.75,
-        currency: 'USD',
-        lastUpdated: new Date()
-      };
+    switch (chainIdNum) {
+      case CHAIN_IDS.FLOW:
+        tokenAddress = CONTRACT_ADDRESSES.flow.mockToken;
+        break;
+      case CHAIN_IDS.LOCALHOST:
+        tokenAddress = CONTRACT_ADDRESSES.localhost.mockToken;
+        break;
+      default:
+        throw new Error(`Chain ID ${chainId} not supported`);
     }
+
+    // Get public client from wagmi
+    const publicClient = usePublicClient();
+    if (!publicClient) {
+      throw new Error('No public client available');
+    }
+
+    // Create contract instance
+    const tokenContract = getContract({
+      address: tokenAddress as `0x${string}`,
+      abi: erc20Abi,
+      publicClient
+    });
+
+    // Get token info and balance
+    const [decimals, symbol, balance] = await Promise.all([
+      tokenContract.read.decimals(),
+      tokenContract.read.symbol(),
+      tokenContract.read.balanceOf([address as `0x${string}`])
+    ]);
+
+    // Convert balance to token units
+    const tokenAmount = Number(balance) / Math.pow(10, decimals);
+    
+    // Convert to USD using price API
+    const usdAmount = await convertTokenToUsdWithFallback(tokenAmount, symbol);
+    
+    return {
+      amount: usdAmount,
+      currency: 'USD',
+      nativeAmount: tokenAmount,
+      nativeSymbol: symbol,
+      lastUpdated: new Date()
+    };
   } catch (error) {
     console.error('Error fetching individual balance:', error);
     // Fallback to mock data
     return {
-      amount: 8450.75,
+      amount: 0.00,
       currency: 'USD',
       lastUpdated: new Date()
     };
