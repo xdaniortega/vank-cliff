@@ -10,6 +10,7 @@ import { erc20Abi } from '@/contracts/erc20Abi';
 import { useCompanyPayrolls } from '@/hooks/useCompanyPayrolls';
 import PayrollPositionCard from './PayrollPositionCard';
 import { formatBalance } from '@/utils/formatUtils';
+import { usePayrollId } from '@/hooks/usePayrollId';
 
 interface LiquidityPosition {
   id: number;
@@ -57,6 +58,7 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
   const [selectedPayrollInfo, setSelectedPayrollInfo] = useState<PayrollInfo | null>(null);
   const { address: userAddress } = useWalletInfo();
   const { address: companyAddress } = useWalletInfo();
+  const { getNextId } = usePayrollId(userAddress as string);
 
   // Memoize company address for useCompanyPayrolls
   const memoizedCompanyAddress = useMemo(() => 
@@ -108,8 +110,8 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
 
   // Memoize formatted balances
   const formattedBalances = useMemo(() => ({
-    tokenA: formatBalance(balanceQueryA.data as bigint | null | undefined, 2, tokenAInfo?.toString() || 'mDAI'),
-    tokenB: formatBalance(balanceQueryB.data as bigint | null | undefined, 2, tokenBInfo?.toString() || 'mTKN')
+    tokenA: formatBalance(balanceQueryA.data as bigint | null | undefined, 2, tokenAInfo?.toString() || ''),
+    tokenB: formatBalance(balanceQueryB.data as bigint | null | undefined, 2, tokenBInfo?.toString() || ''),
   }), [balanceQueryA.data, balanceQueryB.data, tokenAInfo, tokenBInfo]);
 
   const resetForm = useCallback(() => {
@@ -258,8 +260,10 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
 
       // Step 2: Create Payroll
       console.log('Step 2: Creating Payroll...');
-      setStatus('creating-payroll'); // Update status to show we're creating the payroll
-      const payrollId = BigInt(Date.now());
+      setStatus('creating-payroll');
+      
+      // Usar el hook para obtener el siguiente ID
+      const payrollId = getNextId();
 
       const receipt = await createPayroll(
         payrollId,
@@ -534,7 +538,7 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
                       />
                     </div>
                     <div style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary, marginTop: 2 }}>
-                      Balance: {balanceQueryA.isLoading ? '...' : formattedBalances.tokenA} {tokenAInfo?.toString() || 'mDAI'}
+                      Balance: {balanceQueryA.isLoading ? '...' : formattedBalances.tokenA} {tokenAInfo?.toString() || ''}
                     </div>
                   </div>
 
@@ -554,7 +558,7 @@ const CreatePayrollPopup: React.FC<CreatePayrollPopupProps> = ({
                       />
                     </div>
                     <div style={{ fontSize: typography.fontSize.xs, color: colors.text.secondary, marginTop: 2 }}>
-                      Balance: {balanceQueryB.isLoading ? '...' : formattedBalances.tokenB} {tokenBInfo?.toString() || 'mTKN'}
+                      Balance: {balanceQueryB.isLoading ? '...' : formattedBalances.tokenB} {tokenBInfo?.toString() || ''}
                     </div>
                   </div>
                 </div>

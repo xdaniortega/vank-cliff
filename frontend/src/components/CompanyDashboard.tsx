@@ -1,7 +1,7 @@
 'use client';
 
 import { colors, typography, spacing } from '@/theme/colors';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { DollarSign, Zap, TrendingUp, X, User, Wallet, Award, Star, Clock, Info, Calendar, ArrowRight, Users } from 'lucide-react';
 import LoadingCard from './LoadingCard';
 import BlockscoutTransactionHistory from './BlockscoutTransactionHistory';
@@ -23,6 +23,9 @@ import PayrollPositionCard from './PayrollPositionCard';
 import { useCompanyPayrolls } from '@/hooks/useCompanyPayrolls';
 import { useReadContract } from 'wagmi';
 import { payrollContractABI } from '@/abi/payrollContractABI';
+import { useCompanyLastPayrolls } from '../hooks/useCompanyLastPayrolls';
+import { PayrollCompleteInfo } from '../hooks/useCompanyLastPayrolls';
+import PayrollScheduleDetails from './PayrollScheduleDetails';
 
 interface CompanyDashboardProps {
   isLoading: boolean;
@@ -761,18 +764,18 @@ const ActionsCard = ({
           <h2 style={{
             fontSize: typography.fontSize.xl,
             fontWeight: typography.fontWeight.bold,
-            color: colors.text.primary,
+                color: colors.text.primary,
             margin: '0 0 8px 0'
-          }}>
+              }}>
             Company Actions
           </h2>
-          <p style={{
-            fontSize: typography.fontSize.sm,
-            color: colors.text.secondary,
-            margin: 0
-          }}>
+            <p style={{
+              fontSize: typography.fontSize.sm,
+              color: colors.text.secondary,
+              margin: 0
+            }}>
             Manage payroll and employee rewards
-          </p>
+            </p>
         </div>
 
         {/* Actions */}
@@ -1358,75 +1361,80 @@ const PayrollInfoPopup = ({
     isActive: boolean;
   } | null;
 }) => {
+  // Usar la dirección del contrato desplegado
+  const contractAddress = "0x8861eD313bd3548C160Cd66d305957A418CC4E8A" as `0x${string}`;
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const positionInfoArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId y positionIndex sean bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    const positionIndex = typeof payroll.positionIndex === 'string' ? BigInt(payroll.positionIndex) : payroll.positionIndex;
+    return [payrollId, positionIndex] as const;
+  }, [payroll, contractAddress]);
+
   const { data: positionInfo, isLoading: isLoadingPositionInfo } = useReadContract({
-    address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
+    address: contractAddress,
     abi: payrollContractABI,
     functionName: 'getPositionInfo',
-    args: payroll ? [payroll.payrollId, payroll.positionIndex] : undefined,
+    args: positionInfoArgs,
     query: {
-      enabled: !!payroll
+      enabled: !!positionInfoArgs && !!contractAddress
     }
   });
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const payrollInfoArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId sea bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    return [payrollId] as const;
+  }, [payroll, contractAddress]);
 
   const { data: payrollInfoData, isLoading: isLoadingPayrollInfo } = useReadContract({
-    address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
+    address: contractAddress,
     abi: payrollContractABI,
     functionName: 'getPayrollInfo',
-    args: payroll ? [payroll.payrollId] : undefined,
+    args: payrollInfoArgs,
     query: {
-      enabled: !!payroll
+      enabled: !!payrollInfoArgs && !!contractAddress
     }
   });
+
+  // Asegurarnos de que los argumentos sean bigint y que el payroll exista
+  const beneficiariesArgs = useMemo(() => {
+    if (!payroll || !contractAddress) return undefined;
+    // Asegurarnos de que payrollId sea bigint
+    const payrollId = typeof payroll.payrollId === 'string' ? BigInt(payroll.payrollId) : payroll.payrollId;
+    return [payrollId] as const;
+  }, [payroll, contractAddress]);
 
   const { data: beneficiariesData, isLoading: isLoadingBeneficiaries } = useReadContract({
-    address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
+    address: contractAddress,
     abi: payrollContractABI,
     functionName: 'getPayrollBeneficiaries',
-    args: payroll ? [payroll.payrollId] : undefined,
+    args: beneficiariesArgs,
     query: {
-      enabled: !!payroll
+      enabled: !!beneficiariesArgs && !!contractAddress
     }
   });
 
-  // Get beneficiary amounts
-  const beneficiaryQueries = beneficiariesData ? (beneficiariesData as `0x${string}`[]).map(beneficiary => {
-    const { data: amountData } = useReadContract({
-      address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
-      abi: payrollContractABI,
-      functionName: 'payrollAmounts',
-      args: [payroll?.payrollId as bigint, beneficiary],
-      query: {
-        enabled: !!payroll?.payrollId && !!beneficiary
-      }
-    });
+  // ... rest of the code ...
 
-    const { data: unlockTimeData } = useReadContract({
-      address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
-      abi: payrollContractABI,
-      functionName: 'payrollUnlockTimes',
-      args: [payroll?.payrollId as bigint, beneficiary],
-      query: {
-        enabled: !!payroll?.payrollId && !!beneficiary
-      }
-    });
-
-    const { data: hasClaimedData } = useReadContract({
-      address: process.env.NEXT_PUBLIC_PAYROLL_CONTRACT_ADDRESS as `0x${string}`,
-      abi: payrollContractABI,
-      functionName: 'payrollHasClaimed',
-      args: [payroll?.payrollId as bigint, beneficiary],
-      query: {
-        enabled: !!payroll?.payrollId && !!beneficiary
-      }
-    });
-
-    return {
-      beneficiary,
-      amount: amountData as bigint | undefined,
-      unlockTime: unlockTimeData as bigint | undefined,
-      hasClaimed: hasClaimedData as boolean | undefined
-    };
-  }) : [];
+  // Si no hay contractAddress, mostrar un mensaje de error
+  if (!contractAddress) {
+    return (
+      <div style={{
+        padding: spacing.lg,
+        backgroundColor: colors.error,
+        color: 'white',
+        borderRadius: '8px',
+        textAlign: 'center'
+      }}>
+        Error: Contract address is not configured. Please check your environment variables.
+      </div>
+    );
+  }
 
   if (!isOpen || !payroll) return null;
 
@@ -1541,7 +1549,7 @@ const PayrollInfoPopup = ({
                 color: colors.text.primary,
                 margin: 0
               }}>
-                Vesting Schedule Details
+                Payroll Schedule Details
               </h2>
             </div>
             <button
@@ -1588,12 +1596,12 @@ const PayrollInfoPopup = ({
                   fontSize: typography.fontSize.sm,
                   color: colors.text.secondary
                 }}>
-                  Loading vesting information...
+                  Loading payroll information...
                 </span>
               </div>
             ) : (
               <>
-                {/* Vesting Schedule Info */}
+                {/* Payroll Schedule Info */}
                 <div style={{
                   backgroundColor: colors.surface,
                   padding: spacing.lg,
@@ -1617,7 +1625,7 @@ const PayrollInfoPopup = ({
                         color: colors.text.primary,
                         fontFamily: 'monospace'
                       }}>
-                        Vesting Schedule #{payroll.payrollId.toString()}
+                        Payroll Schedule #{payroll.payrollId.toString()}
                       </div>
                     </div>
                     <div style={{
@@ -1632,7 +1640,7 @@ const PayrollInfoPopup = ({
                     </div>
                   </div>
 
-                  {/* Vesting Schedule Details */}
+                  {/* Payroll Schedule Details */}
                   <div style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1687,7 +1695,7 @@ const PayrollInfoPopup = ({
                     </div>
                   </div>
 
-                  {/* Vesting Progress */}
+                  {/* Payroll Progress */}
                   <div style={{
                     marginTop: spacing.sm,
                     height: '4px',
@@ -1708,7 +1716,7 @@ const PayrollInfoPopup = ({
                     textAlign: 'right',
                     marginTop: spacing.xs
                   }}>
-                    {progress}% vested
+                    {progress}% completed
                   </div>
                 </div>
 
@@ -1729,104 +1737,101 @@ const PayrollInfoPopup = ({
                     gap: spacing.xs
                   }}>
                     <Users size={16} />
-                    Beneficiaries ({beneficiaryQueries.length})
+                    Beneficiaries ({beneficiariesData?.length || 0})
                   </div>
                   <div style={{
                     display: 'flex',
                     flexDirection: 'column',
                     gap: spacing.md
                   }}>
-                    {beneficiaryQueries.map(({ beneficiary, amount, unlockTime, hasClaimed }) => (
-                      <div
-                        key={beneficiary}
-                        style={{
-                          padding: spacing.md,
-                          backgroundColor: colors.light,
-                          borderRadius: '8px',
-                          border: `1px solid ${colors.border}`
-                        }}
-                      >
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: spacing.sm,
-                          marginBottom: spacing.sm
-                        }}>
+                    {beneficiariesData?.length > 0 ? (
+                      beneficiariesData.map((beneficiary) => (
+                        <div
+                          key={beneficiary}
+                          style={{
+                            padding: spacing.md,
+                            backgroundColor: colors.light,
+                            borderRadius: '8px',
+                            border: `1px solid ${colors.border}`
+                          }}
+                        >
                           <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            backgroundColor: `${colors.primary}15`,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center'
+                            gap: spacing.sm,
+                            marginBottom: spacing.sm
                           }}>
-                            <User size={16} color={colors.primary} />
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              backgroundColor: `${colors.primary}15`,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}>
+                              <User size={16} color={colors.primary} />
+                            </div>
+                            <div style={{
+                              fontSize: typography.fontSize.sm,
+                              fontFamily: 'monospace',
+                              color: colors.text.primary,
+                              wordBreak: 'break-all'
+                            }}>
+                              {beneficiary}
+                            </div>
                           </div>
                           <div style={{
-                            fontSize: typography.fontSize.sm,
-                            fontFamily: 'monospace',
-                            color: colors.text.primary,
-                            wordBreak: 'break-all'
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: spacing.sm
                           }}>
-                            {beneficiary}
-                          </div>
-                        </div>
-                        <div style={{
-                          display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                          gap: spacing.sm
-                        }}>
-                          <div>
-                            <div style={{
-                              fontSize: typography.fontSize.xs,
-                              color: colors.text.secondary,
-                              marginBottom: spacing.xs
-                            }}>
-                              Amount
+                            <div>
+                              <div style={{
+                                fontSize: typography.fontSize.xs,
+                                color: colors.text.secondary,
+                                marginBottom: spacing.xs
+                              }}>
+                                Amount
+                              </div>
+                              <div style={{
+                                fontSize: typography.fontSize.sm,
+                                fontWeight: typography.fontWeight.medium,
+                                color: colors.text.primary
+                              }}>
+                                {Number(payroll.amount) / 1e18} DAI
+                              </div>
                             </div>
-                            <div style={{
-                              fontSize: typography.fontSize.sm,
-                              fontWeight: typography.fontWeight.medium,
-                              color: colors.text.primary
-                            }}>
-                              {amount ? (Number(amount) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{
-                              fontSize: typography.fontSize.xs,
-                              color: colors.text.secondary,
-                              marginBottom: spacing.xs
-                            }}>
-                              Unlock Time
-                            </div>
-                            <div style={{
-                              fontSize: typography.fontSize.sm,
-                              color: colors.text.primary
-                            }}>
-                              {unlockTime && unlockTime > 0n ? formatDate(unlockTime) : 'Not unlocked yet'}
-                            </div>
-                          </div>
-                          <div>
-                            <div style={{
-                              fontSize: typography.fontSize.xs,
-                              color: colors.text.secondary,
-                              marginBottom: spacing.xs
-                            }}>
-                              Status
-                            </div>
-                            <div style={{
-                              fontSize: typography.fontSize.sm,
-                              color: hasClaimed ? colors.success : colors.text.secondary,
-                              fontWeight: typography.fontWeight.medium
-                            }}>
-                              {hasClaimed ? 'Claimed' : 'Not claimed'}
+                            <div>
+                              <div style={{
+                                fontSize: typography.fontSize.xs,
+                                color: colors.text.secondary,
+                                marginBottom: spacing.xs
+                              }}>
+                                Status
+                              </div>
+                              <div style={{
+                                fontSize: typography.fontSize.sm,
+                                color: colors.text.primary
+                              }}>
+                                {payroll.isActive ? 'Active' : 'Inactive'}
+                              </div>
                             </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div style={{
+                        padding: spacing.md,
+                        backgroundColor: colors.light,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`,
+                        textAlign: 'center',
+                        color: colors.text.secondary
+                      }}>
+                        No beneficiaries found for this payroll
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
 
@@ -1854,7 +1859,7 @@ const PayrollInfoPopup = ({
                       fontWeight: typography.fontWeight.semibold,
                       color: colors.text.primary
                     }}>
-                      {totalRewardsData ? (Number(totalRewardsData) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
+                      {positionInfo ? (Number(positionInfo[4]) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
                     </div>
                   </div>
                   <div style={{
@@ -1875,7 +1880,7 @@ const PayrollInfoPopup = ({
                       fontWeight: typography.fontWeight.semibold,
                       color: colors.text.primary
                     }}>
-                      {claimedRewardsData ? (Number(claimedRewardsData) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
+                      {positionInfo ? (Number(positionInfo[5]) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
                     </div>
                   </div>
                   <div style={{
@@ -1896,8 +1901,7 @@ const PayrollInfoPopup = ({
                       fontWeight: typography.fontWeight.semibold,
                       color: colors.primary
                     }}>
-                      {totalRewardsData && claimedRewardsData ? 
-                        ((Number(totalRewardsData - claimedRewardsData) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 })) : '0'} DAI
+                      {positionInfo ? ((Number(positionInfo[4]) - Number(positionInfo[5])) / 1e18).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '0'} DAI
                     </div>
                   </div>
                 </div>
@@ -1910,22 +1914,405 @@ const PayrollInfoPopup = ({
   );
 };
 
+function PayrollScheduleDetails({ payrolls, isLoading, error, onRefresh }: { payrolls: PayrollCompleteInfo[], isLoading: boolean, error: Error | null, onRefresh: () => void }) {
+  if (isLoading) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: colors.text.secondary,
+        fontSize: typography.fontSize.sm
+      }}>
+        Loading payrolls...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.error,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: 'white',
+        fontSize: typography.fontSize.sm
+      }}>
+        Error loading payrolls: {error.message}
+      </div>
+    );
+  }
+
+  if (payrolls.length === 0) {
+    return (
+      <div style={{
+        padding: spacing.sm,
+        backgroundColor: colors.surface,
+        borderRadius: '8px',
+        textAlign: 'center',
+        color: colors.text.secondary,
+        fontSize: typography.fontSize.sm
+      }}>
+        No active payrolls found
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="main-block-gradient"
+      style={{
+        backgroundColor: 'white',
+        padding: spacing.lg,
+        borderRadius: '16px',
+        border: `1px solid ${colors.border}`,
+        boxShadow: `0 4px 12px ${colors.shadow}`,
+        marginTop: spacing.xl
+      }}
+    >
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: spacing.md
+      }}>
+        <h2 style={{
+          fontSize: typography.fontSize.xl,
+          fontWeight: typography.fontWeight.bold,
+          color: colors.text.primary,
+          margin: 0
+        }}>
+          Payroll Schedule Details
+        </h2>
+        <button
+          onClick={onRefresh}
+          style={{
+            backgroundColor: colors.light,
+            color: colors.text.secondary,
+            border: 'none',
+            padding: `${spacing.xs} ${spacing.sm}`,
+            borderRadius: '6px',
+            fontSize: typography.fontSize.xs,
+            fontWeight: typography.fontWeight.medium,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: spacing.xs
+          }}
+        >
+          <Info size={14} />
+          Refresh
+        </button>
+      </div>
+
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: spacing.md
+      }}>
+        {payrolls.map((payroll, index) => (
+          <div
+            key={payroll.payrollId.toString()}
+            style={{
+              backgroundColor: colors.surface,
+              padding: spacing.lg,
+              borderRadius: '12px',
+              border: `1px solid ${colors.border}`
+            }}
+          >
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: spacing.md
+            }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.md
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.base,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary,
+                  fontFamily: 'monospace'
+                }}>
+                  Payroll Schedule #{index + 1}
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: payroll.isActive ? colors.success : colors.text.secondary,
+                  fontWeight: typography.fontWeight.medium,
+                  backgroundColor: payroll.isActive ? `${colors.success}15` : colors.light,
+                  padding: `${spacing.xs} ${spacing.sm}`,
+                  borderRadius: '4px'
+                }}>
+                  {payroll.isActive ? 'Active' : 'Inactive'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: spacing.md,
+              marginBottom: spacing.md
+            }}>
+              <div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Start Date
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.primary
+                }}>
+                  {new Date(Number(payroll.unlockTime) * 1000).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <div style={{
+                  fontSize: typography.fontSize.xs,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Position Index
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.primary
+                }}>
+                  #0
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              marginTop: spacing.md
+            }}>
+              <div style={{
+                fontSize: typography.fontSize.sm,
+                fontWeight: typography.fontWeight.medium,
+                color: colors.text.primary,
+                marginBottom: spacing.sm,
+                display: 'flex',
+                alignItems: 'center',
+                gap: spacing.xs
+              }}>
+                <Users size={16} />
+                Beneficiaries ({payroll.beneficiaries.length})
+              </div>
+
+              {payroll.beneficiaries.length === 0 ? (
+                <div style={{
+                  padding: spacing.md,
+                  backgroundColor: colors.light,
+                  borderRadius: '8px',
+                  textAlign: 'center',
+                  color: colors.text.secondary
+                }}>
+                  No beneficiaries found for this payroll
+                </div>
+              ) : (
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: spacing.sm
+                }}>
+                  {payroll.beneficiaries.map((beneficiary, idx) => (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: spacing.md,
+                        backgroundColor: colors.light,
+                        borderRadius: '8px',
+                        border: `1px solid ${colors.border}`
+                      }}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        marginBottom: spacing.sm
+                      }}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          backgroundColor: `${colors.primary}15`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <User size={16} color={colors.primary} />
+                        </div>
+                        <div style={{
+                          fontSize: typography.fontSize.sm,
+                          fontFamily: 'monospace',
+                          color: colors.text.primary,
+                          wordBreak: 'break-all'
+                        }}>
+                          {beneficiary.beneficiary}
+                        </div>
+                      </div>
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                        gap: spacing.sm
+                      }}>
+                        <div>
+                          <div style={{
+                            fontSize: typography.fontSize.xs,
+                            color: colors.text.secondary,
+                            marginBottom: spacing.xs
+                          }}>
+                            Amount
+                          </div>
+                          <div style={{
+                            fontSize: typography.fontSize.sm,
+                            fontWeight: typography.fontWeight.medium,
+                            color: colors.text.primary
+                          }}>
+                            {Number(beneficiary.amount) / 1e18} DAI
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{
+                            fontSize: typography.fontSize.xs,
+                            color: colors.text.secondary,
+                            marginBottom: spacing.xs
+                          }}>
+                            Claimed
+                          </div>
+                          <div style={{
+                            fontSize: typography.fontSize.sm,
+                            color: colors.text.primary
+                          }}>
+                            {Number(beneficiary.claimedAmount) / 1e18} DAI
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: spacing.md,
+              marginTop: spacing.lg
+            }}>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Total Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary
+                }}>
+                  {Number(payroll.totalAmount) / 1e18} DAI
+                </div>
+              </div>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Claimed Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.text.primary
+                }}>
+                  {Number(payroll.beneficiaries.reduce((sum, b) => sum + b.claimedAmount, 0n)) / 1e18} DAI
+                </div>
+              </div>
+              <div style={{
+                padding: spacing.md,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                border: `1px solid ${colors.border}`
+              }}>
+                <div style={{
+                  fontSize: typography.fontSize.sm,
+                  color: colors.text.secondary,
+                  marginBottom: spacing.xs
+                }}>
+                  Available Rewards
+                </div>
+                <div style={{
+                  fontSize: typography.fontSize.lg,
+                  fontWeight: typography.fontWeight.semibold,
+                  color: colors.primary
+                }}>
+                  {Number(payroll.totalAmount - payroll.beneficiaries.reduce((sum, b) => sum + b.claimedAmount, 0n)) / 1e18} DAI
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   const [treasuryBalance, setTreasuryBalance] = useState<number>(0);
+  const [selectedPayroll, setSelectedPayroll] = useState<PayrollCompleteInfo | null>(null);
   const [teamsData, setTeamsData] = useState<TeamsAndEmployeesData | undefined>();
   const [balance, setBalance] = useState<TreasuryBalance | null>(null);
   const [isDataLoading, setIsDataLoading] = useState(false);
   const { address: walletAddress, chainId } = useWalletInfo();
-  const { address: companyAddress } = useWalletInfo();
-  const { payrolls, isLoading: isLoadingPayrolls, refetch: refetchPayrolls } = useCompanyPayrolls(
-    companyAddress as `0x${string}` | undefined
-  );
-  const [selectedPayroll, setSelectedPayroll] = useState<{
-    payrollId: bigint;
-    positionIndex: bigint;
-    amount: bigint;
-    isActive: boolean;
-  } | null>(null);
+  
+  // Use the hook to get payroll data
+  const { 
+    payrolls, 
+    isLoading: isLoadingPayrolls, 
+    error: payrollsError
+  } = useCompanyLastPayrolls(walletAddress, { maxPayrolls: 3 });
+
+  // Debug logs
+  useEffect(() => {
+    console.log('CompanyDashboard - Wallet Info:', {
+      walletAddress,
+      chainId,
+      isConnected: !!walletAddress
+    });
+  }, [walletAddress, chainId]);
+
+  // Debug logs for payroll data
+  useEffect(() => {
+    console.log('CompanyDashboard - Payroll Data:', {
+      payrolls,
+      isLoadingPayrolls,
+      error: payrollsError?.message,
+      totalPayrolls: payrolls.length
+    });
+  }, [payrolls, isLoadingPayrolls, payrollsError]);
 
   // Fetch teams and employees data + balance
   useEffect(() => {
@@ -1952,7 +2339,11 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
   };
 
   return (
-    <div>
+    <div style={{
+      padding: spacing.xl,
+      maxWidth: '1200px',
+      margin: '0 auto'
+    }}>
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
@@ -2001,25 +2392,6 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
               }}>
                 Last 3 Payrolls
               </h3>
-              <button
-                onClick={() => refetchPayrolls()}
-                style={{
-                  backgroundColor: colors.light,
-                  color: colors.text.secondary,
-                  border: 'none',
-                  padding: `${spacing.xs} ${spacing.sm}`,
-                  borderRadius: '6px',
-                  fontSize: typography.fontSize.xs,
-                  fontWeight: typography.fontWeight.medium,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: spacing.xs
-                }}
-              >
-                <Info size={14} />
-                Refresh
-              </button>
             </div>
 
             {isLoadingPayrolls ? (
@@ -2033,7 +2405,29 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
               }}>
                 Loading payrolls...
               </div>
-            ) : payrolls.length > 0 ? (
+            ) : payrollsError ? (
+              <div style={{
+                padding: spacing.sm,
+                backgroundColor: colors.error,
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: 'white',
+                fontSize: typography.fontSize.sm
+              }}>
+                Error loading payrolls: {payrollsError.message}
+              </div>
+            ) : !payrolls.length ? (
+              <div style={{
+                padding: spacing.sm,
+                backgroundColor: colors.surface,
+                borderRadius: '8px',
+                textAlign: 'center',
+                color: colors.text.secondary,
+                fontSize: typography.fontSize.sm
+              }}>
+                No payrolls found for this company
+              </div>
+            ) : (
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -2124,17 +2518,6 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
                   </div>
                 ))}
               </div>
-            ) : (
-              <div style={{
-                padding: spacing.sm,
-                backgroundColor: colors.surface,
-                borderRadius: '8px',
-                textAlign: 'center',
-                color: colors.text.secondary,
-                fontSize: typography.fontSize.sm
-              }}>
-                No payrolls found
-              </div>
             )}
           </div>
         </div>
@@ -2159,21 +2542,18 @@ export default function CompanyDashboard({ isLoading }: CompanyDashboardProps) {
         onClose={() => setSelectedPayroll(null)}
         payroll={selectedPayroll}
       />
+
+      {/* Payroll Schedule Section */}
+      <div style={{
+        marginTop: spacing.xl
+      }}>
+        <PayrollScheduleDetails
+          payrolls={payrolls}
+          isLoading={isLoadingPayrolls}
+          error={payrollsError}
+          onRefresh={() => {}} // Empty function since we don't need refresh anymore
+        />
+      </div>
     </div>
   );
 }
-
-// Add CSS for spinner animation (moved to proper place)
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  `;
-  if (!document.head.querySelector('style[data-animation="spin"]')) {
-    style.setAttribute('data-animation', 'spin');
-    document.head.appendChild(style);
-  }
-} 

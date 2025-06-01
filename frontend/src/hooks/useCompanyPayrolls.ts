@@ -2,6 +2,7 @@ import { useReadContract, useChainId, useAccount } from 'wagmi';
 import { CHAIN_IDS, getContractAddress } from '../contracts/addresses';
 import CompanyLiquidityManagerABI from '../contracts/CompanyLiquidityManager.json';
 import { useCallback, useState, useEffect, useMemo } from 'react';
+import { getLastPayrollId } from './usePayrollId';
 
 export interface CompanyPayroll {
   payrollId: bigint;
@@ -39,6 +40,11 @@ export const useCompanyPayrolls = (companyAddress: `0x${string}` | undefined) =>
     isConnected && 
     !!userAddress,
     [companyAddress, contractAddr, chainId, isConnected, userAddress]
+  );
+
+  const lastPayrollId = useMemo(() => 
+    companyAddress ? getLastPayrollId(companyAddress) : 0n,
+    [companyAddress]
   );
 
   // Get total positions count
@@ -166,10 +172,16 @@ export const useCompanyPayrolls = (companyAddress: `0x${string}` | undefined) =>
             _isActive
           ] = payrollData as [bigint, bigint, bigint, bigint, bigint, boolean];
 
+          const payrollId = lastPayrollId !== undefined && BigInt(currentIndex + 1) <= lastPayrollId 
+            ? BigInt(currentIndex + 1) 
+            : positionId;
+
           setPayrolls(prev => {
             const newPayrolls = [...prev];
-            newPayrolls[currentIndex] = {
-              payrollId: positionId,
+            
+            const payrollIndex = newPayrolls.findIndex(p => p.payrollId === payrollId);
+            const newPayroll = {
+              payrollId,
               positionIndex: BigInt(currentIndex),
               startTime,
               endTime,
@@ -182,10 +194,21 @@ export const useCompanyPayrolls = (companyAddress: `0x${string}` | undefined) =>
               totalRewards,
               claimedRewards
             };
-            return newPayrolls.sort((a, b) => Number(b.startTime - a.startTime));
+
+            if (payrollIndex >= 0) {
+              newPayrolls[payrollIndex] = newPayroll;
+            } else {
+              newPayrolls.push(newPayroll);
+            }
+
+            return newPayrolls.sort((a, b) => {
+              const idDiff = Number(b.payrollId - a.payrollId);
+              if (idDiff !== 0) return idDiff;
+              
+              return Number(b.startTime - a.startTime);
+            });
           });
 
-          // Move to next position if available
           if (currentIndex + 1 < Number(totalPositions)) {
             setCurrentIndex(prev => prev + 1);
           } else {
@@ -215,7 +238,8 @@ export const useCompanyPayrolls = (companyAddress: `0x${string}` | undefined) =>
     currentIndex,
     positionError,
     payrollError,
-    totalPositionsError
+    totalPositionsError,
+    lastPayrollId
   ]);
 
   if (!isEnabled) {

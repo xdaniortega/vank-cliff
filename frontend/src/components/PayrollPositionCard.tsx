@@ -261,7 +261,7 @@ const PayrollPositionCard = ({
               gap: spacing.xs
             }}>
               <Hash size={14} />
-              Vesting Schedule #{payrollId.toString()}
+              Payroll Schedule #{payrollId.toString()}
             </div>
           </div>
         </div>
@@ -277,7 +277,7 @@ const PayrollPositionCard = ({
         </div>
       </div>
 
-      {/* Vesting Schedule */}
+      {/* Payroll Schedule */}
       <div style={{
         marginBottom: spacing.lg,
         padding: spacing.md,
@@ -294,7 +294,7 @@ const PayrollPositionCard = ({
           gap: spacing.xs
         }}>
           <Clock size={16} />
-          Vesting Schedule Details
+          Payroll Schedule Details
         </div>
         <div style={{
           display: 'grid',
@@ -308,7 +308,7 @@ const PayrollPositionCard = ({
               color: colors.text.secondary,
               marginBottom: spacing.xs
             }}>
-              Schedule ID
+              Payroll ID
             </div>
             <div style={{
               fontSize: typography.fontSize.sm,
@@ -370,7 +370,7 @@ const PayrollPositionCard = ({
           textAlign: 'right',
           marginTop: spacing.xs
         }}>
-          {progress}% vested
+          {progress}% completed
         </div>
       </div>
 
@@ -391,7 +391,7 @@ const PayrollPositionCard = ({
           gap: spacing.xs
         }}>
           <Users size={16} />
-          Beneficiaries ({beneficiaryQueries.length})
+          Beneficiaries
         </div>
         <div style={{
           display: 'flex',
