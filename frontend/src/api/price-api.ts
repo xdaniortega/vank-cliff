@@ -3,6 +3,9 @@
  * Fetches real-time cryptocurrency prices from CoinGecko API
  */
 
+import { http } from 'wagmi'
+import { wagmiConfig } from '@/app/layout'
+
 export interface PriceData {
   symbol: string;
   usdPrice: number;
@@ -45,10 +48,9 @@ export const fetchTokenPrice = async (symbol: string): Promise<PriceData | null>
   try {
     console.log(`🔍 Fetching price for ${symbol} (${tokenId}) from CoinGecko...`);
     
-    const response = await fetch(
+    const response = await http.get(
       `https://api.coingecko.com/api/v3/simple/price?ids=${tokenId}&vs_currencies=usd&include_last_updated_at=true`,
       {
-        method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -93,10 +95,9 @@ export const fetchMultipleTokenPrices = async (symbols: string[]): Promise<Recor
   try {
     console.log(`🔍 Fetching prices for multiple tokens from CoinGecko...`);
     
-    const response = await fetch(
+    const response = await http.get(
       `https://api.coingecko.com/api/v3/simple/price?ids=${idsString}&vs_currencies=usd&include_last_updated_at=true`,
       {
-        method: 'GET',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json'
@@ -207,19 +208,36 @@ export const convertTokenToUsdWithFallback = async (
   tokenAmount: number,
   tokenSymbol: string
 ): Promise<number> => {
-  // Try to get real-time price first
-  const realPrice = await convertTokenToUsd(tokenAmount, tokenSymbol);
-  
-  if (realPrice !== null) {
-    return realPrice;
+  try {
+    // Validate inputs
+    if (typeof tokenAmount !== 'number' || isNaN(tokenAmount)) {
+      console.warn(`⚠️ Invalid token amount: ${tokenAmount}`);
+      return 0;
+    }
+
+    if (!tokenSymbol || typeof tokenSymbol !== 'string') {
+      console.warn(`⚠️ Invalid token symbol: ${tokenSymbol}`);
+      return 0;
+    }
+
+    // Try to get real-time price first
+    const realPrice = await convertTokenToUsd(tokenAmount, tokenSymbol);
+    
+    if (realPrice !== null) {
+      return realPrice;
+    }
+    
+    // Fallback to hardcoded rates
+    const fallbackPrice = getFallbackPrice(tokenSymbol);
+    const usdAmount = tokenAmount * fallbackPrice;
+    
+    console.warn(`⚠️ Using fallback rate for ${tokenSymbol}: $${fallbackPrice}`);
+    console.log(`💰 Fallback conversion: ${tokenAmount} ${tokenSymbol} = $${usdAmount.toFixed(2)} USD`);
+    
+    return usdAmount;
+  } catch (error) {
+    console.error(`❌ Error converting ${tokenAmount} ${tokenSymbol} to USD:`, error);
+    // Return 0 as a safe fallback
+    return 0;
   }
-  
-  // Fallback to hardcoded rates
-  const fallbackPrice = getFallbackPrice(tokenSymbol);
-  const usdAmount = tokenAmount * fallbackPrice;
-  
-  console.warn(`⚠️ Using fallback rate for ${tokenSymbol}: $${fallbackPrice}`);
-  console.log(`💰 Fallback conversion: ${tokenAmount} ${tokenSymbol} = $${usdAmount.toFixed(2)} USD`);
-  
-  return usdAmount;
 }; 

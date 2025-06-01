@@ -19,12 +19,13 @@ import {
 } from './blockscout-api';
 
 import { getContract } from 'viem';
-import { usePublicClient } from 'wagmi';
+import { getPublicClient } from 'wagmi/actions';
 import { usePayrollContract } from '../hooks/usePayrollContract';
 import { useWalletInfo } from '../hooks/useWalletInfo';
 import { erc20Abi } from '../contracts/erc20Abi';
 import { CONTRACT_ADDRESSES, CHAIN_IDS } from '../contracts/addresses';
 import { convertTokenToUsdWithFallback } from './price-api';
+import { wagmiConfig } from '@/app/layout';
 
 // Types and Interfaces
 export interface Employee {
@@ -329,30 +330,36 @@ export const fetchIndividualBalance = async (
         throw new Error(`Chain ID ${chainId} not supported`);
     }
 
-    // Get public client from wagmi
-    const publicClient = usePublicClient();
+    // Get public client from wagmi config
+    const publicClient = getPublicClient(wagmiConfig);
     if (!publicClient) {
       throw new Error('No public client available');
     }
 
-    // Create contract instance
-    const tokenContract = getContract({
-      address: tokenAddress as `0x${string}`,
-      abi: erc20Abi,
-      publicClient
-    });
-
-    // Get token info and balance
+    // Read contract data using public client with explicit types
     const [decimals, symbol, balance] = await Promise.all([
-      tokenContract.read.decimals(),
-      tokenContract.read.symbol(),
-      tokenContract.read.balanceOf([address as `0x${string}`])
+      publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'decimals'
+      }) as Promise<number>,
+      publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'symbol'
+      }) as Promise<string>,
+      publicClient.readContract({
+        address: tokenAddress as `0x${string}`,
+        abi: erc20Abi,
+        functionName: 'balanceOf',
+        args: [address as `0x${string}`]
+      }) as Promise<bigint>
     ]);
 
-    // Convert balance to token units
-    const tokenAmount = Number(balance) / Math.pow(10, decimals);
+    // Convert balance to token units (balance is bigint, decimals is number)
+    const tokenAmount = Number(balance) / Math.pow(10, Number(decimals));
     
-    // Convert to USD using price API
+    // Convert to USD using price API (symbol is string)
     const usdAmount = await convertTokenToUsdWithFallback(tokenAmount, symbol);
     
     return {
@@ -1045,6 +1052,26 @@ export const simulateApiCallWithFailure = <T>(
   });
 };
 
+export async function getContractEvents(
+  contractAddress: string,
+  fromBlock: bigint,
+  toBlock: bigint,
+  eventName: string
+): Promise<any[]> {
+  try {
+    // Get public client from wagmi config
+    const publicClient = getPublicClient(wagmiConfig)
+    if (!publicClient) {
+      throw new Error('No public client available')
+    }
+
+    // ... rest of the function ...
+  } catch (error) {
+    console.error('Error getting contract events:', error)
+    throw error
+  }
+}
+
 // =============================================================================
 // EXPORT ALL FUNCTIONS
 // =============================================================================
@@ -1078,5 +1105,6 @@ export default {
   
   // Utilities
   simulateApiCall,
-  simulateApiCallWithFailure
+  simulateApiCallWithFailure,
+  getContractEvents
 }; 

@@ -45,8 +45,7 @@ export default function LoginPage() {
             color: colors.text.secondary,
             marginBottom: spacing.lg
           }}>
-            Your comprehensive crypto portfolio management platform
-          </p>
+Liquidity First Payroll Platform          </p>
           <p style={{
             fontSize: typography.fontSize.base,
             color: colors.text.light
