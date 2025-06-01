@@ -18,7 +18,6 @@ import {
   BlockscoutMeritActivityLog
 } from './blockscout-api';
 
-import { CompanyLiquidityManager } from '../typechain-types';
 import { getContract } from 'viem';
 import { usePublicClient, useWalletClient } from 'viem';
 import { usePayrollContract } from '../hooks/usePayrollContract';
