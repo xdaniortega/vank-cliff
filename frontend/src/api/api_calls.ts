@@ -327,7 +327,7 @@ export const fetchIndividualBalance = async (
     const tokenContract = getContract({
       address: tokenAddress as `0x${string}`,
       abi: erc20Abi,
-      client: publicClient
+      publicClient
     });
 
     // Get token info and balance with proper type assertions
