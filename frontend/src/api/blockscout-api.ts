@@ -102,11 +102,21 @@ export const getChainConfig = (chainId: string): BlockscoutConfig | null => {
 /**
  * Convert wei to formatted token amount
  */
-export const weiToToken = (weiValue: string, decimals: number = 18): number => {
-  const wei = BigInt(weiValue);
-  const divisor = BigInt(10 ** decimals);
-  const tokenAmount = Number(wei) / Number(divisor);
-  return tokenAmount;
+export const weiToToken = (weiValue: string | null | undefined, decimals: number = 18): number => {
+  if (!weiValue) {
+    console.warn('⚠️ Attempted to convert null or undefined wei value to token amount');
+    return 0;
+  }
+
+  try {
+    const wei = BigInt(weiValue);
+    const divisor = BigInt(10 ** decimals);
+    const tokenAmount = Number(wei) / Number(divisor);
+    return tokenAmount;
+  } catch (error) {
+    console.error('❌ Error converting wei to token amount:', error);
+    return 0;
+  }
 };
 
 /**
