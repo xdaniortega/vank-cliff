@@ -14,7 +14,8 @@ async function main() {
   // 2. Desplegar MockLiquidityPool
   console.log("\n=== Desplegando MockLiquidityPool ===");
   const MockLiquidityPool = await ethers.getContractFactory("MockLiquidityPool");
-  const mockPool = await MockLiquidityPool.deploy(mockTokenAddress);
+  const [deployer] = await ethers.getSigners();
+  const mockPool = await MockLiquidityPool.deploy(mockTokenAddress, mockTokenAddress, deployer.address);
   await mockPool.waitForDeployment();
   const mockPoolAddress = await mockPool.getAddress();
   console.log(`✅ MockLiquidityPool desplegado en: ${mockPoolAddress}`);
@@ -22,7 +23,7 @@ async function main() {
   // 3. Desplegar CompanyLiquidityManager
   console.log("\n=== Desplegando CompanyLiquidityManager ===");
   const CompanyLiquidityManager = await ethers.getContractFactory("CompanyLiquidityManager");
-  const liquidityManager = await CompanyLiquidityManager.deploy(mockTokenAddress, mockPoolAddress);
+  const liquidityManager = await CompanyLiquidityManager.deploy();
   await liquidityManager.waitForDeployment();
   const liquidityManagerAddress = await liquidityManager.getAddress();
   console.log(`✅ CompanyLiquidityManager desplegado en: ${liquidityManagerAddress}`);
@@ -48,7 +49,7 @@ async function main() {
     console.log("\nVerificando MockLiquidityPool...");
     await hre.run("verify:verify", {
       address: mockPoolAddress,
-      constructorArguments: [mockTokenAddress],
+      constructorArguments: [mockTokenAddress, mockTokenAddress, deployer.address],
       network: "flow-evm"
     });
     console.log("✅ MockLiquidityPool verificado");
@@ -57,7 +58,7 @@ async function main() {
     console.log("\nVerificando CompanyLiquidityManager...");
     await hre.run("verify:verify", {
       address: liquidityManagerAddress,
-      constructorArguments: [mockTokenAddress, mockPoolAddress],
+      constructorArguments: [],
       network: "flow-evm"
     });
     console.log("✅ CompanyLiquidityManager verificado");
